@@ -21,6 +21,7 @@ façon WordPress. Application **Nuxt 3** en SPA doublée d'un **proxy Nitro prud
 - [Tests](#tests)
 - [Sécurité](#sécurité)
 - [Documentation](#documentation)
+- [Contribuer](#contribuer)
 - [Licence](#licence)
 
 ---
@@ -145,7 +146,8 @@ Points d'attention pour un déploiement partagé :
 - Le proxy d'images restreint les hôtes autorisés (anti-SSRF) ; l'anti-zip-slip protège
   l'extraction des plugins.
 
-Signalez toute vulnérabilité via une *issue* privée plutôt que publiquement.
+Pour signaler une vulnérabilité, suivez [SECURITY.md](SECURITY.md) (signalement privé) —
+n'ouvrez **pas** d'issue publique.
 
 ## Documentation
 
@@ -155,6 +157,12 @@ Signalez toute vulnérabilité via une *issue* privée plutôt que publiquement.
 | [docs/PLUGINS.md](docs/PLUGINS.md) | Créer un plugin : manifest, client/server, réglages, packaging. |
 | [docs/ANCRES.md](docs/ANCRES.md) | Référence des slots d'UI, filtres et actions, avec leur `ctx`. |
 | [docs/API-PROXY.md](docs/API-PROXY.md) | Le proxy `/api/t/*` : allowlists, TTL, quotas, relay WebSocket. |
+
+## Contribuer
+
+Les contributions sont bienvenues ! Consultez [CONTRIBUTING.md](CONTRIBUTING.md) pour le
+workflow (issue → fork → branche → PR), les conventions et les prérequis. `main` est protégée :
+tout passe par une Pull Request avec CI verte.
 
 ## Licence
 
