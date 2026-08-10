@@ -132,9 +132,12 @@ nouvelles versions dans **Paramètres → Mises à jour**.
   docker compose --profile autoupdate up -d
   ```
 
-  > Le jeton `WATCHTOWER_TOKEN` est partagé entre l'app et watchtower ; l'API n'est pas
-  > exposée sur l'hôte (réseau interne au compose). L'action est réservée aux admins de
-  > l'instance et ne peut mettre à jour que l'image déjà configurée.
+  > **Sécurité.** Le jeton `WATCHTOWER_TOKEN` est partagé entre l'app et watchtower ; l'API
+  > n'est pas exposée sur l'hôte (réseau interne au compose) ; l'action est réservée aux
+  > admins de l'instance et ne met à jour que l'image déjà configurée. Watchtower **n'accède
+  > pas au socket Docker brut** : il passe par un `docker-socket-proxy` (inclus dans le profil)
+  > qui ne lui ouvre que les endpoints conteneurs/images nécessaires, le socket étant monté
+  > en lecture seule. Cela limite fortement la surface en cas de compromission.
 
 - **Installation git** : `git pull && npm ci && npm run build`, puis redémarrez.
 
