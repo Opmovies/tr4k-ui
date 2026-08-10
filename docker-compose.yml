@@ -38,15 +38,34 @@ services:
   # Met à jour tr4k-ui depuis l'image GHCR : automatiquement toutes les 6 h ET/OU
   # à la demande via le bouton « Mettre à jour maintenant » de l'UI (API HTTP).
   # Activer avec :  WATCHTOWER_TOKEN=... docker compose --profile autoupdate up -d
+
+  # Proxy du socket Docker : watchtower n'accède PAS au socket brut (= root sur l'hôte),
+  # mais seulement au sous-ensemble d'API nécessaire (conteneurs/images), en lecture du
+  # socket. Durcissement recommandé.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: tr4k-ui-socket-proxy
+    restart: unless-stopped
+    profiles: [autoupdate]
+    environment:
+      CONTAINERS: 1   # lister/inspecter les conteneurs
+      IMAGES: 1       # inspecter/tirer les images
+      NETWORKS: 1     # ré-attacher les réseaux à la recréation
+      POST: 1         # créer/démarrer/arrêter/supprimer (recréation)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # aucun port publié : joignable uniquement en interne par watchtower
+
   watchtower:
     # fork maintenu (containrrr/watchtower est abandonné et incompatible avec Docker ≥ 25)
     image: nickfedor/watchtower:latest
     container_name: tr4k-ui-watchtower
     restart: unless-stopped
     profiles: [autoupdate]
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - docker-socket-proxy
     environment:
+      DOCKER_HOST: tcp://docker-socket-proxy:2375 # passe par le proxy, pas le socket brut
       WATCHTOWER_SCOPE: tr4k-ui          # ne touche QUE le conteneur tr4k-ui
       WATCHTOWER_CLEANUP: "true"         # supprime les anciennes images
       WATCHTOWER_POLL_INTERVAL: "21600"  # vérif auto toutes les 6 h
