@@ -68,6 +68,28 @@
             </div>
           </div>
 
+          <div class="card">
+            <div class="set-title"><RefreshCw :size="15" /> Mises à jour</div>
+            <div class="set-row">
+              <div>
+                <div class="set-name">TR4K UI <span class="mono muted" style="font-size:11px">v{{ upd?.current || '…' }}</span></div>
+                <div v-if="updPending" class="set-desc">Vérification…</div>
+                <div v-else-if="upd?.updateAvailable" class="set-desc" style="color:var(--accent)">
+                  Nouvelle version disponible : v{{ upd.latest.version }}
+                </div>
+                <div v-else-if="upd?.latest" class="set-desc">À jour (dernière release : v{{ upd.latest.version }})</div>
+                <div v-else class="set-desc">Aucune release publiée pour l'instant</div>
+              </div>
+              <a v-if="upd?.updateAvailable" class="chip on" style="padding:8px 14px" :href="upd.latest.url" target="_blank" rel="noreferrer">
+                <ExternalLink :size="13" /> Voir la release
+              </a>
+            </div>
+            <div v-if="upd?.updateAvailable" class="pill-note" style="margin-top:10px">
+              Docker : <code>docker compose pull && docker compose up -d</code> ·
+              Installation git : <code>git pull && npm ci && npm run build</code> puis redémarrer.
+            </div>
+          </div>
+
           <div class="pill-note" style="display:flex; gap:8px; align-items:center">
             <Info :size="14" style="flex:none" />
             Ces préférences sont enregistrées localement (localStorage). Vider les données du site les réinitialisera.
@@ -79,9 +101,12 @@
 </template>
 
 <script setup>
-import { Settings, SlidersHorizontal, Palette, Moon, Sun, Layers, Bell, Volume2, Info, Puzzle } from 'lucide-vue-next'
+import { Settings, SlidersHorizontal, Palette, Moon, Sun, Layers, Bell, Volume2, Info, Puzzle, RefreshCw, ExternalLink } from 'lucide-vue-next'
 import { playChatSound } from '~/composables/useChatSound'
 useHead({ title: 'Paramètres — TR4KUI' })
+
+// check de mise à jour de l'app (cache 6 h côté serveur — pas de spam GitHub)
+const { data: upd, pending: updPending } = useFetch('/api/updates', { server: false })
 
 // onglets — un seul pour l'instant, structure prête pour en ajouter (ex. Notifications, Avancé…)
 const TABS = [
