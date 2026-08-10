@@ -46,7 +46,9 @@ export function setSession(event: H3Event, payload: SessionPayload) {
     path: '/', maxAge: 30 * 24 * 3600,
   })
 }
-export function clearSession(event: H3Event) { deleteCookie(event, COOKIE, { path: '/' }) }
+// nommé clearSessionCookie (pas clearSession) pour ne pas entrer en collision avec le
+// clearSession exporté par h3 ≥ 1.14 (auto-importé par Nitro) — évite un warning au build.
+export function clearSessionCookie(event: H3Event) { deleteCookie(event, COOKIE, { path: '/' }) }
 export function readSession(event: H3Event): SessionPayload | null {
   const v = getCookie(event, COOKIE)
   return v ? decryptSession<SessionPayload>(v) : null
