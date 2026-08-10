@@ -69,6 +69,10 @@ a:hover { color: var(--accent); }
 
 /* ---------- layout : sidebar + contenu ---------- */
 .shell { display: flex; min-height: 100vh; }
+/* fond sombre du tiroir mobile — masqué sur desktop */
+.side-backdrop { display: none; }
+/* bouton hamburger — visible seulement sur mobile (voir media query) */
+.topbar-burger { display: none; }
 .sidebar {
   width: 210px; flex: none;
   display: flex; flex-direction: column;
@@ -421,6 +425,8 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-size: 12px; }
   background: var(--bg2); border-top: 1px solid var(--line);
   font-size: 11.5px; color: var(--muted);
 }
+.chat-back { display: none; padding: 4px 6px; color: var(--muted); } /* visible seulement en mobile (media query) */
+.chat-back:hover { color: var(--txt); }
 .scroll-toggle { border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--muted); }
 .scroll-toggle.on { color: var(--accent); border-color: var(--accent-dim); background: rgba(55,217,154,.08); }
 .ws-state { font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
@@ -650,4 +656,77 @@ button.small { padding: 4px 9px; font-size: 12px; }
 @media (max-width: 900px) {
   .trow { grid-template-columns: 44px minmax(0, 1fr); }
   .trow .statcol, .trow .rowactions { display: none; }
+}
+
+/* ====================== MOBILE (≤ 768px) ====================== */
+@media (max-width: 768px) {
+  /* --- sidebar en tiroir off-canvas --- */
+  .sidebar,
+  .sidebar.folded {
+    position: fixed; top: 0; left: 0; z-index: 200;
+    width: 264px; max-width: 82vw; height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  }
+  .shell.nav-open .sidebar { transform: translateX(0); }
+  /* dans le tiroir on garde toujours les libellés (jamais le rail replié) */
+  .sidebar.folded .logo-txt,
+  .sidebar.folded .side-nav a span,
+  .sidebar.folded .side-who,
+  .sidebar.folded .side-theme span,
+  .sidebar.folded .side-settings span { display: inline; }
+  .sidebar.folded .side-nav a { justify-content: flex-start; padding: 9px 11px; }
+  .fold { display: none; } /* le repli n'a pas de sens en tiroir */
+
+  .side-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 150;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0; pointer-events: none; transition: opacity 0.22s ease;
+  }
+  .shell.nav-open .side-backdrop { opacity: 1; pointer-events: auto; }
+
+  /* --- topbar : hamburger + recherche compacte --- */
+  .content { min-width: 0; }
+  .topbar { padding: 9px 12px; gap: 10px; }
+  .topbar-burger {
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: none; width: 38px; height: 38px; border-radius: 10px;
+    background: var(--card2); border: 1px solid var(--line); color: var(--txt);
+  }
+  .topsearch { padding: 8px 11px; }
+  .page-wrap { padding: 0 12px 32px; }
+
+  /* --- contrôles qui débordaient : scroll horizontal plutôt que coupe --- */
+  .seg {
+    max-width: 100%; overflow-x: auto; flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { white-space: nowrap; flex: none; }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  /* --- chat : une seule colonne (liste OU conversation) --- */
+  .chat-shell { height: calc(100dvh - 108px); gap: 0; }
+  .chan-col { width: 100%; }
+  /* masquage géré par la classe .mobile-conv posée par ChatView */
+  .chat-shell.mobile-conv .chan-col { display: none; }
+  .chat-shell:not(.mobile-conv) .chat-main { display: none; }
+  .chat-back { display: inline-flex; }
+
+  /* --- cartes plugin : le bloc titre garde une largeur mini pour que les
+         actions (réglages/toggle/màj/install) passent à la ligne au lieu d'écraser le texte.
+         !important car le composant pose min-width:0 en style inline. --- */
+  .plug-head { flex-wrap: wrap; row-gap: 10px; align-items: center; }
+  .plug-head > div { min-width: 60% !important; }
+  .sec-head { align-items: flex-start; }
+  .sec-head .seg { margin-left: 0; }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+
+  /* --- fiche torrent : entête empilé --- */
+  .pf-head, .up-row { flex-wrap: wrap; }
+
+  /* --- dock de chat flottant : plein écran utile --- */
+  .chat-dock { width: calc(100vw - 16px); right: 8px; bottom: 76px; height: calc(100dvh - 92px); }
 }

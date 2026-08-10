@@ -83,7 +83,15 @@ const ratio = computed(() => {
   return d ? (me.value.uploaded / d).toFixed(2) : '∞'
 })
 
+// Repli = rail d'icônes sur DESKTOP uniquement. Sur mobile la sidebar devient un
+// tiroir pleine largeur (via useSidebar) : on force le déplié pour garder les libellés.
 const folded = ref(false)
-onMounted(() => { folded.value = localStorage.getItem('tr4kui.folded') === '1' || window.innerWidth < 900 })
-watch(folded, (v) => localStorage.setItem('tr4kui.folded', v ? '1' : '0'))
+onMounted(() => {
+  const mq = window.matchMedia('(max-width: 768px)')
+  const apply = () => { if (mq.matches) folded.value = false }
+  if (!mq.matches) folded.value = localStorage.getItem('tr4kui.folded') === '1'
+  apply()
+  mq.addEventListener('change', apply)
+})
+watch(folded, (v) => { if (!window.matchMedia('(max-width: 768px)').matches) localStorage.setItem('tr4kui.folded', v ? '1' : '0') })
 </script>

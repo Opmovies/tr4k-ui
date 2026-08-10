@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-shell" :class="{ floating }">
+  <div class="chat-shell" :class="{ floating, 'mobile-conv': !!current }">
     <ChatConversationList
       :pane="pane" :channels="channels" :dms="dms" :mods="mods" :current="current" :unread="unread"
       @update:pane="pane = $event" @open="openConversation" @start-dm="startDm"
@@ -8,6 +8,7 @@
     <div class="chat-main">
       <div class="chat-head" v-if="current">
         <div style="display:flex; align-items:center; gap:10px">
+          <button class="ghost chat-back" title="Retour aux canaux" @click="current = null"><ChevronLeft :size="16" /></button>
           <MessagesSquare v-if="current.type === 'dm'" :size="15" style="color:var(--fl)" />
           <b>{{ current.name }}</b>
           <span v-if="readOnly" class="badge">lecture seule ({{ (current.write_roles || []).join(', ') }})</span>
@@ -53,7 +54,7 @@
 </template>
 
 <script setup>
-import { MessagesSquare, ArrowDownToLine } from 'lucide-vue-next'
+import { MessagesSquare, ArrowDownToLine, ChevronLeft } from 'lucide-vue-next'
 import { playChatSound } from '~/composables/useChatSound'
 
 /**
