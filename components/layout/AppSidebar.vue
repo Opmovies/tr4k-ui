@@ -37,6 +37,7 @@
         <b>{{ me.username }}</b>
         <span class="mono muted">ratio {{ ratio }} · <Coins :size="10" style="vertical-align:-1px" /> {{ fmtInt(me.money) }}</span>
         <span v-if="me.freeleech_global" class="badge b-fl" style="margin-top:4px">FREELEECH GLOBAL</span>
+        <span class="mono muted" style="font-size:9.5px; opacity:.6; margin-top:3px">TR4K UI v{{ appVersion }}</span>
       </div>
     </div>
   </aside>
@@ -62,6 +63,7 @@ const nav = computed(() => pluginHost.filters.applyFilters(
 ))
 
 const me = inject('me', ref(null))
+const appVersion = useRuntimeConfig().public.appVersion
 const { theme, toggleTheme } = useSettings()
 
 // pastille de mises à jour (app + plugins) — check partagé, une fois par session
