@@ -21,6 +21,12 @@
     <NuxtLink to="/plugins" class="side-settings" :title="folded ? 'Plugins' : undefined">
       <Puzzle :size="17" /><span v-if="!folded">Plugins</span>
     </NuxtLink>
+    <NuxtLink v-if="updateCount" to="/plugins?updates=1" class="side-settings side-update"
+              :title="folded ? `${updateCount} mise(s) à jour disponible(s)` : undefined">
+      <span class="upd-ico"><RefreshCw :size="17" /><span class="upd-dot" /></span>
+      <span v-if="!folded">Mises à jour</span>
+      <span v-if="!folded" class="upd-count">{{ updateCount }}</span>
+    </NuxtLink>
     <button v-if="canLogout" class="side-settings side-logout" :title="folded ? 'Déconnexion' : undefined" @click="logout">
       <LogOut :size="17" /><span v-if="!folded">Déconnexion</span>
     </button>
@@ -37,7 +43,7 @@
 </template>
 
 <script setup>
-import { ChevronLeft, ChevronRight, Compass, ChartColumn, User, Store, Coins, Sun, Moon, Sparkles, Upload, Settings, LogOut, Puzzle } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Compass, ChartColumn, User, Store, Coins, Sun, Moon, Sparkles, Upload, Settings, LogOut, Puzzle, RefreshCw } from 'lucide-vue-next'
 
 // nav du core + entrées enregistrées par les plugins (ancres registerNav/registerPage), triées par order
 const CORE_NAV = [
@@ -57,6 +63,10 @@ const nav = computed(() => pluginHost.filters.applyFilters(
 
 const me = inject('me', ref(null))
 const { theme, toggleTheme } = useSettings()
+
+// pastille de mises à jour (app + plugins) — check partagé, une fois par session
+const { count: updateCount, ensure: ensureUpdates } = useUpdates()
+onMounted(() => ensureUpdates())
 
 const { session } = useSession()
 onMounted(() => getSession())
