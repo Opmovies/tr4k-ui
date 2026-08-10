@@ -180,6 +180,12 @@ des routes serveur sous `/api/px/<id>/*`.
 - Slots et contextes disponibles : [docs/ANCRES.md](docs/ANCRES.md)
 - Packager : `npm run plugin:pack -- <dossier-du-plugin>`
 
+**Marketplace** : la page /plugins propose un catalogue curé de plugins installables en un
+clic depuis leur dernière release GitHub (section « Marketplace »). Pour y figurer, un plugin
+doit être un dépôt public publiant des releases avec l'archive `<id>-x.y.z.zip` ; on l'ajoute
+au registre `server/utils/plugin-registry.ts`. Une pastille **Mises à jour** apparaît dans la
+barre latérale dès qu'une nouvelle version (app ou plugin) est disponible.
+
 > **Attention :** le `server.mjs` d'un plugin s'exécute sans bac à sable côté serveur,
 > et le `client.mjs` est du JavaScript exécuté dans le navigateur de tous les
 > utilisateurs. N'installez que des plugins de confiance et restreignez l'accès via

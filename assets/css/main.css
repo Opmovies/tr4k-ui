@@ -107,6 +107,13 @@ a:hover { color: var(--accent); }
 .side-settings:hover { background: var(--card); color: var(--txt); }
 .side-settings.router-link-active { color: var(--accent); background: rgba(55, 217, 154, 0.09); }
 .sidebar.folded .side-settings { justify-content: center; }
+/* entrée « Mises à jour » de la sidebar (visible seulement s'il y en a) */
+.side-update { color: var(--accent); }
+.side-update:hover { background: rgba(55, 217, 154, 0.09); color: var(--accent); }
+.side-update .upd-ico { position: relative; display: inline-flex; }
+.side-update .upd-dot { position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.side-update .upd-count { margin-left: auto; font-family: var(--mono); font-size: 10.5px; font-weight: 700; background: rgba(55, 217, 154, 0.15); color: var(--accent); border-radius: 999px; padding: 1px 7px; }
+
 .side-foot { display: flex; gap: 10px; align-items: center; padding: 13px 14px; border-top: 1px solid var(--line); }
 .side-settings.side-logout { border: none; background: transparent; width: calc(100% - 20px); text-align: left; cursor: pointer; }
 .side-settings.side-logout:hover { color: var(--danger); background: var(--card); }

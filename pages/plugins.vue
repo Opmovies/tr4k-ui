@@ -5,6 +5,19 @@
       Étends TR4KUI sans toucher au core : glisse une archive .zip (avec son <code>plugin.json</code>) ci-dessous.
     </p>
 
+    <!-- bannière : mise à jour de l'application disponible (non applicable en 1 clic → Docker/git) -->
+    <div v-if="appUpdate" class="card app-upd">
+      <RefreshCw :size="16" style="flex:none; color:var(--accent)" />
+      <div style="flex:1; min-width:0">
+        <b>TR4K UI v{{ appUpdate.latest.version }} disponible</b>
+        <span class="mono muted" style="font-size:11px"> (actuel v{{ appUpdate.current }})</span>
+        <div class="muted" style="font-size:12px; margin-top:2px">
+          Docker : <code>docker compose pull &amp;&amp; docker compose up -d</code> · git : <code>git pull &amp;&amp; npm ci &amp;&amp; npm run build</code>
+        </div>
+      </div>
+      <a class="chip on" style="padding:8px 14px" :href="appUpdate.latest.url" target="_blank" rel="noreferrer"><ExternalLink :size="13" /> Release</a>
+    </div>
+
     <!-- zone d'installation -->
     <div class="dropzone" :class="{ over: dragOver }" @dragover.prevent="dragOver = true" @dragleave="dragOver = false"
          @drop.prevent="onDrop" @click="picker?.click()">
@@ -23,6 +36,7 @@
     </div>
 
     <!-- liste des plugins installés -->
+    <h2 class="sec-title"><Puzzle :size="16" /> Installés</h2>
     <div v-if="pending" class="empty"><span class="spin" /></div>
     <div v-else-if="!plugins.length" class="empty">Aucun plugin installé pour l'instant.</div>
     <div v-for="p in plugins" :key="p.id" class="card plug-card">
@@ -61,11 +75,41 @@
         <PluginSlot :name="`plugin.settings.${p.id}`" :ctx="p" />
       </div>
     </div>
+
+    <!-- marketplace : plugins proposés à l'installation depuis un catalogue curé -->
+    <h2 class="sec-title" style="margin-top:10px"><Store :size="16" /> Marketplace</h2>
+    <p class="muted" style="margin:-6px 0 0; font-size:12.5px">
+      Plugins vérifiés, installés directement depuis leur dernière release GitHub.
+    </p>
+    <div v-if="marketPending" class="empty"><span class="spin" /></div>
+    <div v-else-if="!available.length" class="empty">Tous les plugins du marketplace sont déjà installés.</div>
+    <div v-for="m in available" :key="m.id" class="card plug-card">
+      <div class="plug-head">
+        <span class="plug-icon">
+          <component v-if="iconOf(m).component" :is="iconOf(m).component" :size="22" />
+          <template v-else>{{ iconOf(m).text || '🧩' }}</template>
+        </span>
+        <div style="min-width:0; flex:1">
+          <div style="display:flex; gap:8px; align-items:baseline; flex-wrap:wrap">
+            <b>{{ m.name }}</b>
+            <span v-if="m.latestVersion" class="mono muted" style="font-size:11px">v{{ m.latestVersion }}</span>
+            <span v-if="m.author" class="muted" style="font-size:11px">par {{ m.author }}</span>
+            <a v-if="m.homepage" class="mod-link" :href="m.homepage" target="_blank" rel="noreferrer"><ExternalLink :size="12" /> GitHub</a>
+          </div>
+          <div class="muted" style="font-size:12.5px">{{ m.description }}</div>
+        </div>
+        <button v-if="m.installable" class="primary small" :disabled="marketInstalling === m.id" @click="installFromMarket(m)">
+          <span v-if="marketInstalling === m.id" class="spin" />
+          <Download v-else :size="14" /> Installer
+        </button>
+        <span v-else class="badge b-bad" title="Aucune release .zip publiée">indisponible</span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { Puzzle, UploadCloud, ShieldAlert, Settings2, ChevronDown, Trash2, RefreshCw } from 'lucide-vue-next'
+import { Puzzle, UploadCloud, ShieldAlert, Settings2, ChevronDown, Trash2, RefreshCw, Store, Download, ExternalLink } from 'lucide-vue-next'
 import { resolvePluginIcon } from '~/composables/usePluginHost'
 useHead({ title: 'Plugins — TR4KUI' })
 
@@ -79,10 +123,28 @@ const dragOver = ref(false)
 const installing = ref(false)
 const openSettings = ref('')
 const updating = ref('')
+const marketInstalling = ref('')
 
-// mises à jour dispo (plugins déclarant `repository` — cache 6 h côté serveur)
-const { data: updData } = useFetch('/api/plugins/updates', { server: false })
-const updateOf = (id) => (updData.value?.updates || []).find((u) => u.id === id && u.updateAvailable)
+// marketplace : catalogue curé ; on ne montre que les plugins pas encore installés
+const { data: marketData, pending: marketPending } = useFetch('/api/plugins/marketplace', { server: false })
+const available = computed(() => (marketData.value?.items || []).filter((m) => !m.installed))
+
+async function installFromMarket(m) {
+  marketInstalling.value = m.id
+  try {
+    const r = await $fetch('/api/plugins/marketplace/install', { method: 'POST', body: { id: m.id } })
+    toast({ title: `Plugin « ${r.manifest.name} » installé`, body: `v${r.version} — rechargement…` })
+    setTimeout(() => location.reload(), 600)
+  } catch (e) {
+    toast({ title: 'Installation refusée', body: e?.data?.statusMessage || e?.message })
+    marketInstalling.value = ''
+  }
+}
+
+// mises à jour dispo (état partagé avec la sidebar : app + plugins)
+const { appUpdate, pluginUpdates, ensure: ensureUpdates } = useUpdates()
+onMounted(() => ensureUpdates())
+const updateOf = (id) => pluginUpdates.value.find((u) => u.id === id && u.updateAvailable)
 
 async function updatePlugin(p) {
   updating.value = p.id
@@ -163,4 +225,8 @@ async function remove(p) {
 }
 .plug-settings { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .iconbtn.danger:hover { color: var(--bad, #e5484d); border-color: var(--bad, #e5484d); }
+.sec-title { margin: 6px 0 -2px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.app-upd { display: flex; align-items: center; gap: 12px; border-color: var(--accent-dim); background: rgba(55, 217, 154, 0.05); }
+.mod-link { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); }
+.mod-link:hover { color: var(--accent); }
 </style>
