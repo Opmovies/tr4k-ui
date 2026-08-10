@@ -15,6 +15,7 @@ façon WordPress. Application **Nuxt 3** en SPA doublée d'un **proxy Nitro prud
 - [Fonctionnalités](#fonctionnalités)
 - [Démarrage rapide](#démarrage-rapide)
 - [Déploiement Docker (production)](#déploiement-docker-production)
+- [Authentification : login ou clé API](#authentification--login-ou-clé-api)
 - [Variables d'environnement](#variables-denvironnement)
 - [Architecture](#architecture)
 - [Plugins](#plugins)
@@ -75,14 +76,29 @@ docker compose ps           # état + santé
 docker compose down         # arrêter (le volume tr4k-data est conservé)
 ```
 
+## Authentification : login ou clé API
+
+Deux modes, **exclusifs** :
+
+- **Mode login (par défaut, recommandé)** — chaque utilisateur se connecte avec son compte
+  TR4KER via `/login`. Le JWT de session est chiffré dans un cookie. **Aucune clé API
+  n'est nécessaire.** C'est le mode à utiliser pour une instance partagée (plusieurs comptes).
+- **Mode clé-config (optionnel, mono-compte)** — pour un usage perso sans login : tout le
+  monde utilise une seule clé API. Activé **uniquement** si vous posez
+  `NUXT_ALLOW_CONFIG_KEY=1`. C'est **seulement dans ce mode** que `NUXT_TR4KER_API_KEY` est
+  utile.
+
+> La seule variable réellement requise en production est **`NUXT_SESSION_SECRET`** (elle
+> chiffre les cookies de session) — **pas** la clé API.
+
 ## Variables d'environnement
 
 | Variable | Rôle | Défaut |
 |---|---|---|
 | `NUXT_SESSION_SECRET` | **Requis en prod.** Clé de chiffrement des cookies de session (`openssl rand -hex 32`). Sans elle, un secret aléatoire local (`.session-secret`) est généré. | — |
 | `NUXT_TR4KER_BASE` | URL de base de l'API du tracker. | `https://tr4ker.net` |
-| `NUXT_TR4KER_API_KEY` | Clé API pour le repli mono-compte (sinon lue dans `../tr4ker.config.json`). | — |
-| `NUXT_ALLOW_CONFIG_KEY` | `1` autorise le repli clé-config (sans login). | `0` |
+| `NUXT_ALLOW_CONFIG_KEY` | `1` active le mode clé-config (mono-compte, sans login). Laissez à `0` pour exiger un login. | `0` |
+| `NUXT_TR4KER_API_KEY` | Clé API — **utilisée seulement si `NUXT_ALLOW_CONFIG_KEY=1`** (mode mono-compte). Inutile en mode login. À défaut, lue dans `../tr4ker.config.json`. | — |
 | `NUXT_PLUGIN_ADMINS` | IDs des comptes autorisés à gérer les plugins (ex. `12,34`). **Indispensable en instance multi-comptes** (voir [Sécurité](#sécurité)). | vide |
 | `NUXT_IMGBB_KEY` | Clé imgbb pour l'upload d'images du chat/commentaires. | — |
 | `PORT` | Port exposé côté hôte (Docker). | `3010` |
