@@ -90,6 +90,14 @@ L'application écoute sur le port **3010** de l'hôte (configurable via `PORT`).
 conteneur expose `3000` en interne et se déclare *healthy* dès que
 `/api/auth/session` répond.
 
+### Sur Dokploy (ou PaaS avec Traefik)
+
+Un compose prêt à l'emploi est fourni : [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml).
+Créez un service **Compose**, collez le fichier, définissez `NUXT_SESSION_SECRET` dans l'onglet
+_Environment_, puis ajoutez votre domaine (_Domains_ → service `tr4k-ui`, port `3000`, HTTPS).
+Pas de port publié ni de reverse-proxy à gérer : Dokploy s'en charge, et les mises à jour se font
+via son bouton **Redeploy** (ou un webhook d'auto-déploiement).
+
 ```bash
 docker compose logs -f      # suivre les logs
 docker compose ps           # état + santé

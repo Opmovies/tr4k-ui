@@ -1,0 +1,54 @@
+# Déploiement sur Dokploy (https://dokploy.com) — service de type « Compose ».
+#
+# Dokploy fournit le reverse-proxy (Traefik), le TLS/Let's Encrypt, les variables
+# d'environnement et les redéploiements. On ne publie donc PAS de port et on ne fixe
+# PAS de container_name (Dokploy gère les noms) ; le service rejoint `dokploy-network`
+# pour être routé par Traefik.
+#
+# Mise en place :
+#   1) Nouveau service « Compose » → collez ce fichier.
+#   2) Onglet « Environment » : NUXT_SESSION_SECRET=$(openssl rand -hex 32)
+#      (optionnel : NUXT_PLUGIN_ADMINS, NUXT_TR4KER_BASE).
+#   3) Onglet « Domains » : ajoutez votre domaine → service `tr4k-ui`, port `3000`, HTTPS activé.
+#   4) Déployez.
+#
+# Mise à jour : bouton « Redeploy » de Dokploy (re-tire l'image `latest`), ou épinglez une
+# version (`ghcr.io/n-ramos/tr4k-ui:1.4.1`) et changez le tag. Dokploy peut aussi redéployer
+# automatiquement via un webhook. Le bouton « Mettre à jour » intégré à l'app n'est PAS actif
+# ici (il dépend de watchtower, volontairement absent) — c'est Dokploy qui pilote les MàJ.
+services:
+  tr4k-ui:
+    image: ghcr.io/n-ramos/tr4k-ui:latest
+    restart: unless-stopped
+    environment:
+      NUXT_TR4KER_BASE: ${NUXT_TR4KER_BASE:-https://tr4ker.net}
+      # OBLIGATOIRE : clé de chiffrement des sessions — à définir dans l'onglet Environment.
+      NUXT_SESSION_SECRET: ${NUXT_SESSION_SECRET:?NUXT_SESSION_SECRET requis (openssl rand -hex 32)}
+      # Instance multi-comptes : IDs autorisés à gérer les plugins (ex: "12,34").
+      NUXT_PLUGIN_ADMINS: ${NUXT_PLUGIN_ADMINS:-}
+      NODE_ENV: production
+    volumes:
+      - tr4k-data:/app/.data           # plugins installés + réglages chiffrés (persistant)
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:3000/api/auth/session"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - dokploy-network
+    # Le plus simple : ajouter le domaine via l'UI Dokploy (service tr4k-ui, port 3000).
+    # Si vous préférez router par labels Traefik, décommentez et définissez TR4K_DOMAIN :
+    # labels:
+    #   - traefik.enable=true
+    #   - traefik.http.routers.tr4k-ui.rule=Host(`${TR4K_DOMAIN}`)
+    #   - traefik.http.routers.tr4k-ui.entrypoints=websecure
+    #   - traefik.http.routers.tr4k-ui.tls.certresolver=letsencrypt
+    #   - traefik.http.services.tr4k-ui.loadbalancer.server.port=3000
+
+volumes:
+  tr4k-data:
+
+networks:
+  dokploy-network:
+    external: true
