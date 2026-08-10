@@ -1,7 +1,8 @@
 name: Release
 
-# À chaque tag vX.Y.Z : publie l'image Docker sur GHCR (versionnée + latest)
-# et crée la release GitHub avec notes auto — c'est elle que l'updater intégré détecte.
+# À chaque tag vX.Y.Z : construit l'image sur des runners NATIFS (amd64 + arm64,
+# pas d'émulation QEMU qui plante Node), fusionne en une image multi-arch sur GHCR
+# (versionnée + latest), et crée la release GitHub — détectée par l'updater intégré.
 on:
   push:
     tags: ['v*']
@@ -10,14 +11,23 @@ permissions:
   contents: write
   packages: write
 
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
 jobs:
-  docker:
-    name: Image GHCR + release
-    runs-on: ubuntu-latest
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm # runner ARM natif (gratuit sur dépôt public)
     steps:
       - uses: actions/checkout@v7
-
-      - uses: docker/setup-qemu-action@v4 # émulation pour le build arm64
 
       - uses: docker/setup-buildx-action@v4
 
@@ -27,26 +37,74 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute tags
+      - name: Build & push par digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+      - name: Exporter le digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Nom de plateforme sûr
+        id: plat
+        run: echo "name=${platform//\//-}" >> "$GITHUB_OUTPUT"
+        env:
+          platform: ${{ matrix.platform }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ steps.plat.outputs.name }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Image multi-arch + release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Version depuis le tag
         id: vars
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          platforms: linux/amd64,linux/arm64 # image multi-arch (serveurs x86 + ARM/Apple Silicon)
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.version }}
-            ghcr.io/${{ github.repository }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Créer la liste de manifestes (multi-arch)
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.IMAGE }}:${{ steps.vars.outputs.version }} \
+            -t ${{ env.IMAGE }}:latest \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
 
-      - name: Create GitHub release
+      - name: Vérifier
+        run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ steps.vars.outputs.version }}
+
+      - name: Créer la release GitHub
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          gh release create "$GITHUB_REF_NAME" --repo "${{ github.repository }}" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
-            --notes "Image Docker : \`ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.version }}\`"
+            --notes "Image Docker : \`${{ env.IMAGE }}:${{ steps.vars.outputs.version }}\`"
