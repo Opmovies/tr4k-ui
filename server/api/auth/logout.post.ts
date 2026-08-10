@@ -7,6 +7,6 @@ export default defineEventHandler(async (event) => {
       await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { Cookie: `TR4KER_session=${s.jwt}` } })
     } catch {}
   }
-  clearSession(event)
+  clearSessionCookie(event)
   return { ok: true }
 })
