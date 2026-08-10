@@ -5,16 +5,22 @@
       Étends TR4KUI sans toucher au core : glisse une archive .zip (avec son <code>plugin.json</code>) ci-dessous.
     </p>
 
-    <!-- bannière : mise à jour de l'application disponible (non applicable en 1 clic → Docker/git) -->
+    <!-- bannière : mise à jour de l'application disponible -->
     <div v-if="appUpdate" class="card app-upd">
-      <RefreshCw :size="16" style="flex:none; color:var(--accent)" />
+      <RefreshCw :size="16" :class="{ spin: applyingApp }" style="flex:none; color:var(--accent)" />
       <div style="flex:1; min-width:0">
         <b>TR4K UI v{{ appUpdate.latest.version }} disponible</b>
         <span class="mono muted" style="font-size:11px"> (actuel v{{ appUpdate.current }})</span>
-        <div class="muted" style="font-size:12px; margin-top:2px">
+        <div v-if="applyingApp" class="muted" style="font-size:12px; margin-top:2px">
+          Mise à jour en cours, le serveur redémarre… la page se rechargera automatiquement.
+        </div>
+        <div v-else-if="!appUpdate.canSelfUpdate" class="muted" style="font-size:12px; margin-top:2px">
           Docker : <code>docker compose pull &amp;&amp; docker compose up -d</code> · git : <code>git pull &amp;&amp; npm ci &amp;&amp; npm run build</code>
         </div>
       </div>
+      <button v-if="appUpdate.canSelfUpdate" class="primary small" :disabled="applyingApp" @click="applyApp">
+        <span v-if="applyingApp" class="spin" /><RefreshCw v-else :size="14" /> Mettre à jour
+      </button>
       <a class="chip on" style="padding:8px 14px" :href="appUpdate.latest.url" target="_blank" rel="noreferrer"><ExternalLink :size="13" /> Release</a>
     </div>
 
@@ -142,7 +148,7 @@ async function installFromMarket(m) {
 }
 
 // mises à jour dispo (état partagé avec la sidebar : app + plugins)
-const { appUpdate, pluginUpdates, ensure: ensureUpdates } = useUpdates()
+const { appUpdate, pluginUpdates, applyingApp, ensure: ensureUpdates, applyApp } = useUpdates()
 onMounted(() => ensureUpdates())
 const updateOf = (id) => pluginUpdates.value.find((u) => u.id === id && u.updateAvailable)
 

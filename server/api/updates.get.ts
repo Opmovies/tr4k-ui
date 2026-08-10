@@ -13,5 +13,6 @@ export default defineEventHandler(async (event) => {
     repo,
     latest: rel ? { version: rel.version, url: rel.url, publishedAt: rel.publishedAt } : null,
     updateAvailable: !!rel && cmpVersions(rel.version, current) > 0,
+    canSelfUpdate: !!process.env.NUXT_WATCHTOWER_TOKEN, // bouton « Mettre à jour maintenant » dispo ?
   }
 })
