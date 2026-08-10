@@ -1,0 +1,31 @@
+export default defineNuxtConfig({
+  ssr: false,
+  devtools: { enabled: false },
+  // Composants rangés par domaine (layout/, chat/, torrent/…) mais noms PLATS :
+  // components/chat/ChatComposer.vue reste <ChatComposer>, pas <ChatChatComposer>.
+  components: [{ path: '~/components', pathPrefix: false }],
+  css: [
+    '@fontsource-variable/inter',
+    '@fontsource-variable/jetbrains-mono',
+    '~/assets/css/main.css',
+  ],
+  app: {
+    head: {
+      title: 'TR4K UI',
+      htmlAttrs: { lang: 'fr' },
+      meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
+    },
+  },
+  nitro: {
+    experimental: { websocket: true }, // relay du chat TR4KER (server/routes/ws.ts)
+  },
+  // Compilateur de templates au runtime : les composants des plugins (client.mjs) sont
+  // des objets à `template` string, sans étape de build.
+  vue: { runtimeCompiler: true },
+  runtimeConfig: {
+    // surchargées par NUXT_TR4KER_BASE / NUXT_TR4KER_API_KEY,
+    // sinon la clé est lue dans ../tr4ker.config.json (voir server/utils/tr4ker.ts)
+    tr4kerBase: 'https://tr4ker.net',
+    tr4kerApiKey: '',
+  },
+})

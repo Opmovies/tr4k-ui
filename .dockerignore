@@ -1,0 +1,14 @@
+node_modules
+.nuxt
+.output
+.data
+.session-secret
+.git
+.claude
+Dockerfile
+docker-compose.yml
+.env
+.env.*
+tests
+docs
+README.md

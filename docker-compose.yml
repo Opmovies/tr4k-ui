@@ -1,0 +1,29 @@
+services:
+  tr4k-ui:
+    build: .
+    image: tr4k-ui:latest
+    container_name: tr4k-ui
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3010}:3000"
+    environment:
+      # URL de base du tracker (surchageable)
+      NUXT_TR4KER_BASE: ${NUXT_TR4KER_BASE:-https://tr4ker.net}
+      # OBLIGATOIRE en prod : clé de chiffrement des sessions (openssl rand -hex 32)
+      NUXT_SESSION_SECRET: ${NUXT_SESSION_SECRET:?NUXT_SESSION_SECRET requis (openssl rand -hex 32)}
+      # Réservez ces admins de plugins en instance multi-comptes (ex: "12,34").
+      # Sans ça, tout compte peut installer un plugin = exécution de code serveur.
+      NUXT_PLUGIN_ADMINS: ${NUXT_PLUGIN_ADMINS:-}
+      NODE_ENV: production
+    volumes:
+      # persiste les plugins installés + leurs réglages chiffrés
+      - tr4k-data:/app/.data
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:3000/api/auth/session"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  tr4k-data:
