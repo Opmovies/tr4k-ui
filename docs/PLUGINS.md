@@ -42,7 +42,8 @@ Exemple réel complet : [`plugins-src/seedbox-qbit/`](../../plugins-src/seedbox-
     ]
   },
   "slots": ["torrent.row.actions"],
-  "permissions": ["server:network"]
+  "permissions": ["server:network"],
+  "repository": "owner/mon-plugin"
 }
 ```
 
@@ -54,6 +55,7 @@ Exemple réel complet : [`plugins-src/seedbox-qbit/`](../../plugins-src/seedbox-
 | `settings.fields[].type` | `text` · `password` · `number` · `boolean` · `select`. |
 | `settings.fields[].secret` | Jamais renvoyé en clair au client : il reçoit la sentinelle `'••••'` ; la renvoyer telle quelle au PUT = « inchangé ». |
 | `slots`, `permissions` | **Purement informatifs** (affichage/lisibilité), rien n'est appliqué. |
+| `repository` | Optionnel, format `owner/repo` (GitHub). Active la **mise à jour automatique** : la page /plugins compare la version installée à la dernière release du dépôt et propose « Mettre à jour » (téléchargement du zip d'asset `<id>-x.y.z.zip`, réservé aux admins de plugins). |
 
 Les réglages sont stockés **par utilisateur**, chiffrés AES-256-GCM dans
 `.data/plugin-data/<id>/u<userId>.settings.enc`.

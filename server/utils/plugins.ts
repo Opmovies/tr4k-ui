@@ -38,6 +38,7 @@ export type PluginManifest = {
   settings?: { fields: PluginSettingsField[] }
   slots?: string[] // informatif
   permissions?: string[] // informatif
+  repository?: string // "owner/repo" GitHub — active la mise à jour via les releases
 }
 
 type State = { rev: number; plugins: Record<string, { enabled: boolean; version: string; installedAt: string }> }
@@ -69,6 +70,8 @@ export function validateManifest(m: any): asserts m is PluginManifest {
   for (const f of [m.client, m.server].filter(Boolean))
     if (!ENTRY_RE.test(f)) throw createError({ statusCode: 400, statusMessage: `plugin.json : entrée invalide « ${f} » (fichier .mjs/.js à la racine du plugin)` })
   if (m.settings && !Array.isArray(m.settings.fields)) throw createError({ statusCode: 400, statusMessage: 'plugin.json : settings.fields doit être un tableau' })
+  if (m.repository !== undefined && (typeof m.repository !== 'string' || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(m.repository)))
+    throw createError({ statusCode: 400, statusMessage: 'plugin.json : repository doit être au format « owner/repo » (GitHub)' })
 }
 
 export function pluginDir(id: string): string {

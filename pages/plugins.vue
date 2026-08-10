@@ -38,9 +38,15 @@
             <span v-if="p.author" class="muted" style="font-size:11px">par {{ p.author }}</span>
             <span v-if="loadError(p.id)" class="badge b-bad" :title="loadError(p.id)">erreur de chargement</span>
             <span v-else-if="!p.enabled" class="badge">désactivé</span>
+            <a v-if="updateOf(p.id)" class="badge b-cat" :href="updateOf(p.id).url" target="_blank" rel="noreferrer"
+               :title="`Release v${updateOf(p.id).latest} sur GitHub`">v{{ updateOf(p.id).latest }} disponible</a>
           </div>
           <div class="muted" style="font-size:12.5px">{{ p.description }}</div>
         </div>
+        <button v-if="updateOf(p.id)" class="ghost small" :disabled="updating === p.id" @click="updatePlugin(p)">
+          <span v-if="updating === p.id" class="spin" />
+          <RefreshCw v-else :size="14" /> Mettre à jour
+        </button>
         <button v-if="p.settings?.fields?.length && p.enabled" class="ghost small" @click="openSettings = openSettings === p.id ? '' : p.id">
           <Settings2 :size="14" /> Réglages
           <ChevronDown :size="13" :style="openSettings === p.id ? 'transform:rotate(180deg)' : ''" />
@@ -59,7 +65,7 @@
 </template>
 
 <script setup>
-import { Puzzle, UploadCloud, ShieldAlert, Settings2, ChevronDown, Trash2 } from 'lucide-vue-next'
+import { Puzzle, UploadCloud, ShieldAlert, Settings2, ChevronDown, Trash2, RefreshCw } from 'lucide-vue-next'
 import { resolvePluginIcon } from '~/composables/usePluginHost'
 useHead({ title: 'Plugins — TR4KUI' })
 
@@ -72,6 +78,23 @@ const picker = ref(null)
 const dragOver = ref(false)
 const installing = ref(false)
 const openSettings = ref('')
+const updating = ref('')
+
+// mises à jour dispo (plugins déclarant `repository` — cache 6 h côté serveur)
+const { data: updData } = useFetch('/api/plugins/updates', { server: false })
+const updateOf = (id) => (updData.value?.updates || []).find((u) => u.id === id && u.updateAvailable)
+
+async function updatePlugin(p) {
+  updating.value = p.id
+  try {
+    const r = await $fetch(`/api/plugins/${p.id}/update`, { method: 'POST' })
+    toast({ title: `${p.name} mis à jour`, body: r.upToDate ? 'Déjà à jour' : `v${r.from} → v${r.to} — rechargement…` })
+    setTimeout(() => location.reload(), 600)
+  } catch (e) {
+    toast({ title: 'Mise à jour refusée', body: e?.data?.statusMessage || e?.message })
+    updating.value = ''
+  }
+}
 
 function iconOf(p) { return resolvePluginIcon(p.icon) }
 function loadError(id) { return loadedPlugins.value.find((l) => l.id === id)?.error || '' }

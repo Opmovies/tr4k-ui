@@ -1,3 +1,5 @@
+import pkg from './package.json'
+
 export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: false },
@@ -27,5 +29,9 @@ export default defineNuxtConfig({
     // sinon la clé est lue dans ../tr4ker.config.json (voir server/utils/tr4ker.ts)
     tr4kerBase: 'https://tr4ker.net',
     tr4kerApiKey: '',
+    public: {
+      appVersion: pkg.version, // affichée dans Paramètres, comparée aux releases GitHub
+      appRepo: 'n-ramos/tr4k-ui', // surchargeable par NUXT_PUBLIC_APP_REPO (fork)
+    },
   },
 })

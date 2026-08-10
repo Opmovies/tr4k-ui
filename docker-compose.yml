@@ -1,9 +1,14 @@
 services:
   tr4k-ui:
+    # image publiée à chaque release (docker compose pull pour mettre à jour) ;
+    # `docker compose up -d --build` reconstruit localement si vous préférez
+    image: ghcr.io/n-ramos/tr4k-ui:latest
     build: .
-    image: tr4k-ui:latest
     container_name: tr4k-ui
     restart: unless-stopped
+    labels:
+      # permet à watchtower (profil autoupdate) de cibler ce conteneur
+      - com.centurylinklabs.watchtower.scope=tr4k-ui
     ports:
       - "${PORT:-3010}:3000"
     environment:
@@ -24,6 +29,20 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  # ---- auto-update complet (optionnel) ----
+  # Surveille l'image GHCR et redémarre tr4k-ui dès qu'une nouvelle release sort.
+  # Activer avec :  docker compose --profile autoupdate up -d
+  watchtower:
+    image: containrrr/watchtower
+    container_name: tr4k-ui-watchtower
+    restart: unless-stopped
+    profiles: [autoupdate]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --scope tr4k-ui --interval 21600 --cleanup   # vérifie toutes les 6 h
+    labels:
+      - com.centurylinklabs.watchtower.scope=tr4k-ui
 
 volumes:
   tr4k-data:

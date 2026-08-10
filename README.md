@@ -16,6 +16,7 @@ façon WordPress. Application **Nuxt 3** en SPA doublée d'un **proxy Nitro prud
 - [Démarrage rapide](#démarrage-rapide)
 - [Déploiement Docker (production)](#déploiement-docker-production)
 - [Authentification : login ou clé API](#authentification--login-ou-clé-api)
+- [Mises à jour](#mises-à-jour)
 - [Variables d'environnement](#variables-denvironnement)
 - [Architecture](#architecture)
 - [Plugins](#plugins)
@@ -90,6 +91,33 @@ Deux modes, **exclusifs** :
 
 > La seule variable réellement requise en production est **`NUXT_SESSION_SECRET`** (elle
 > chiffre les cookies de session) — **pas** la clé API.
+
+## Mises à jour
+
+L'application vérifie les **releases GitHub** (cache 6 h, aucune clé requise) et signale les
+nouvelles versions dans **Paramètres → Mises à jour**.
+
+- **Docker (recommandé)** — chaque release publie une image sur GHCR :
+
+  ```bash
+  docker compose pull && docker compose up -d
+  ```
+
+  Pour un **auto-update complet**, activez le profil watchtower : il surveille l'image et
+  redémarre le conteneur tout seul à chaque release.
+
+  ```bash
+  docker compose --profile autoupdate up -d
+  ```
+
+- **Installation git** : `git pull && npm ci && npm run build`, puis redémarrez.
+
+### Mise à jour des plugins
+
+Un plugin qui déclare `"repository": "owner/repo"` dans son `plugin.json` est vérifié
+contre les releases de son dépôt : la page **/plugins** affiche un badge
+« vX.Y.Z disponible » et un bouton **Mettre à jour** qui télécharge le zip de la release et
+le réinstalle (action réservée aux admins de plugins — voir `NUXT_PLUGIN_ADMINS`).
 
 ## Variables d'environnement
 
