@@ -80,13 +80,23 @@
                 <div v-else-if="upd?.latest" class="set-desc">À jour (dernière release : v{{ upd.latest.version }})</div>
                 <div v-else class="set-desc">Aucune release publiée pour l'instant</div>
               </div>
-              <a v-if="upd?.updateAvailable" class="chip on" style="padding:8px 14px" :href="upd.latest.url" target="_blank" rel="noreferrer">
-                <ExternalLink :size="13" /> Voir la release
-              </a>
+              <div v-if="upd?.updateAvailable" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end">
+                <button v-if="upd.canSelfUpdate" class="primary" :disabled="applyingApp" @click="applyApp">
+                  <span v-if="applyingApp" class="spin" /><RefreshCw v-else :size="14" />
+                  {{ applyingApp ? 'Mise à jour…' : 'Mettre à jour maintenant' }}
+                </button>
+                <a class="chip on" style="padding:8px 14px" :href="upd.latest.url" target="_blank" rel="noreferrer">
+                  <ExternalLink :size="13" /> Voir la release
+                </a>
+              </div>
             </div>
-            <div v-if="upd?.updateAvailable" class="pill-note" style="margin-top:10px">
+            <div v-if="upd?.updateAvailable && applyingApp" class="pill-note" style="margin-top:10px; color:var(--accent)">
+              Mise à jour en cours : le serveur redémarre, la page se rechargera automatiquement.
+            </div>
+            <div v-else-if="upd?.updateAvailable && !upd.canSelfUpdate" class="pill-note" style="margin-top:10px">
               Docker : <code>docker compose pull && docker compose up -d</code> ·
               Installation git : <code>git pull && npm ci && npm run build</code> puis redémarrer.
+              <br />Pour la mise à jour en un clic, activez le profil <code>autoupdate</code> (watchtower).
             </div>
           </div>
 
@@ -107,6 +117,7 @@ useHead({ title: 'Paramètres — TR4KUI' })
 
 // check de mise à jour de l'app (cache 6 h côté serveur — pas de spam GitHub)
 const { data: upd, pending: updPending } = useFetch('/api/updates', { server: false })
+const { applyingApp, applyApp } = useUpdates()
 
 // onglets — un seul pour l'instant, structure prête pour en ajouter (ex. Notifications, Avancé…)
 const TABS = [

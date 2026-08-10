@@ -19,6 +19,10 @@ services:
       # Réservez ces admins de plugins en instance multi-comptes (ex: "12,34").
       # Sans ça, tout compte peut installer un plugin = exécution de code serveur.
       NUXT_PLUGIN_ADMINS: ${NUXT_PLUGIN_ADMINS:-}
+      # Mise à jour de l'app en un clic depuis l'UI (délègue à watchtower).
+      # Renseignez WATCHTOWER_TOKEN + lancez le profil autoupdate pour l'activer.
+      NUXT_WATCHTOWER_URL: http://watchtower:8080
+      NUXT_WATCHTOWER_TOKEN: ${WATCHTOWER_TOKEN:-}
       NODE_ENV: production
     volumes:
       # persiste les plugins installés + leurs réglages chiffrés
@@ -30,17 +34,25 @@ services:
       retries: 3
       start_period: 15s
 
-  # ---- auto-update complet (optionnel) ----
-  # Surveille l'image GHCR et redémarre tr4k-ui dès qu'une nouvelle release sort.
-  # Activer avec :  docker compose --profile autoupdate up -d
+  # ---- auto-update (optionnel) ----
+  # Met à jour tr4k-ui depuis l'image GHCR : automatiquement toutes les 6 h ET/OU
+  # à la demande via le bouton « Mettre à jour maintenant » de l'UI (API HTTP).
+  # Activer avec :  WATCHTOWER_TOKEN=... docker compose --profile autoupdate up -d
   watchtower:
-    image: containrrr/watchtower
+    # fork maintenu (containrrr/watchtower est abandonné et incompatible avec Docker ≥ 25)
+    image: nickfedor/watchtower:latest
     container_name: tr4k-ui-watchtower
     restart: unless-stopped
     profiles: [autoupdate]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --scope tr4k-ui --interval 21600 --cleanup   # vérifie toutes les 6 h
+    environment:
+      WATCHTOWER_SCOPE: tr4k-ui          # ne touche QUE le conteneur tr4k-ui
+      WATCHTOWER_CLEANUP: "true"         # supprime les anciennes images
+      WATCHTOWER_POLL_INTERVAL: "21600"  # vérif auto toutes les 6 h
+      WATCHTOWER_HTTP_API_UPDATE: "true" # active le déclencheur HTTP (bouton UI)
+      WATCHTOWER_HTTP_API_PERIODIC_POLLS: "true" # garde aussi la vérif périodique
+      WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_TOKEN:?WATCHTOWER_TOKEN requis pour le profil autoupdate (openssl rand -hex 16)}
     labels:
       - com.centurylinklabs.watchtower.scope=tr4k-ui
 

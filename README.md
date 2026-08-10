@@ -122,12 +122,19 @@ nouvelles versions dans **Paramètres → Mises à jour**.
   docker compose pull && docker compose up -d
   ```
 
-  Pour un **auto-update complet**, activez le profil watchtower : il surveille l'image et
-  redémarre le conteneur tout seul à chaque release.
+- **Mise à jour en un clic depuis l'UI** — activez le profil `autoupdate` (watchtower).
+  Un bouton **« Mettre à jour maintenant »** apparaît alors dans _Paramètres → Mises à jour_
+  (et sur /plugins) : il tire la nouvelle image et recrée le conteneur, puis la page se
+  recharge automatiquement. Watchtower vérifie aussi en tâche de fond toutes les 6 h.
 
   ```bash
+  # openssl rand -hex 16 → WATCHTOWER_TOKEN dans votre .env
   docker compose --profile autoupdate up -d
   ```
+
+  > Le jeton `WATCHTOWER_TOKEN` est partagé entre l'app et watchtower ; l'API n'est pas
+  > exposée sur l'hôte (réseau interne au compose). L'action est réservée aux admins de
+  > l'instance et ne peut mettre à jour que l'image déjà configurée.
 
 - **Installation git** : `git pull && npm ci && npm run build`, puis redémarrez.
 
