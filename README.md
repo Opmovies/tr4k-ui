@@ -57,8 +57,27 @@ dans un cookie `HttpOnly`.
 
 ## Déploiement Docker (production)
 
-Image multi-stage (build Nuxt → runtime `node:22-alpine` non-root), avec `HEALTHCHECK`
-et volume persistant pour les plugins.
+Image multi-stage (build Nuxt → runtime `node:22-alpine` non-root), **multi-arch
+(amd64 + arm64)**, avec `HEALTHCHECK` et volume persistant pour les plugins.
+
+### Sans cloner le dépôt — `docker run`
+
+L'image est publiée publiquement sur GHCR : un seul `docker run` suffit, aucune source requise.
+
+```bash
+docker run -d --name tr4k-ui \
+  -p 3010:3000 \
+  -e NUXT_SESSION_SECRET="$(openssl rand -hex 32)" \
+  -v tr4k-data:/app/.data \
+  --restart unless-stopped \
+  ghcr.io/n-ramos/tr4k-ui:latest
+```
+
+> ⚠️ Générez `NUXT_SESSION_SECRET` **une seule fois** et réutilisez la même valeur : en
+> régénérer une à chaque recréation du conteneur invaliderait toutes les sessions. Pour une
+> instance multi-comptes, ajoutez `-e NUXT_PLUGIN_ADMINS=…` (voir [Sécurité](#sécurité)).
+
+### Avec le dépôt — `docker compose`
 
 ```bash
 cp .env.example .env
