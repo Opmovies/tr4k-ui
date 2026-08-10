@@ -182,7 +182,7 @@ function handle(m) {
       const msg = { ...m, created_at: m.at || m.created_at }
       if (idx >= 0) messages.value.splice(idx, 1, msg)
       else { messages.value.push(msg); if (!mine && !viewing) { unread[cid] = (unread[cid] || 0) + 1 } }
-      scrollDown(chatSettings.autoScroll)
+      scrollDown(chatSettings.autoScroll, true)
       if (props.visible) wsSend({ type: 'read', conv_id: cid })
     } else if (cid) {
       unread[cid] = (unread[cid] || 0) + 1
@@ -295,7 +295,7 @@ function send(body) {
   messages.value.push(tmp)
   wsSend({ type: 'msg.send', conv_id: current.value.id, body, ...(replyTo.value ? { parent_id: replyTo.value.id } : {}) })
   replyTo.value = null
-  scrollDown()
+  scrollDown(false, true)
 }
 
 function mentionUser(name) {
@@ -345,17 +345,44 @@ async function deleteMessage(m) {
   m.body = undefined
 }
 
-function scrollDown(force) {
+// petite animation de défilement (rAF) : behavior:'smooth' natif est parfois ignoré selon l'environnement
+let scrollRaf = 0
+function animateScrollTo(el, to) {
+  cancelAnimationFrame(scrollRaf)
+  const start = el.scrollTop
+  // très loin du bas → on saute près de la cible pour garder une animation courte
+  const from = to - start > 800 ? (el.scrollTop = to - 400) : start
+  const dist = to - from
+  if (Math.abs(dist) < 2) { el.scrollTop = to; return }
+  const dur = 350, t0 = performance.now()
+  const step = (now) => {
+    const p = Math.min(1, (now - t0) / dur)
+    el.scrollTop = from + dist * (1 - Math.pow(1 - p, 3))
+    if (p < 1) scrollRaf = requestAnimationFrame(step)
+  }
+  scrollRaf = requestAnimationFrame(step)
+}
+
+function scrollDown(force, smooth = false) {
   nextTick(() => {
     const el = msgBox.value
     if (!el) return
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200
-    if (force || nearBottom) el.scrollTop = el.scrollHeight
+    if (!force && !nearBottom) return
+    const to = el.scrollHeight - el.clientHeight
+    if (smooth) animateScrollTo(el, to)
+    else el.scrollTop = to
   })
 }
 
-// quand la conversation courante devient visible, marquer lu
-watch(() => props.visible, (v) => { if (v && current.value) { unread[current.value.id] = 0; wsSend({ type: 'read', conv_id: current.value.id }) } })
+// quand la conversation courante devient visible, marquer lu + recaler la vue en bas
+watch(() => props.visible, (v) => {
+  if (v && current.value) {
+    unread[current.value.id] = 0
+    wsSend({ type: 'read', conv_id: current.value.id })
+    scrollDown(true, true)
+  }
+})
 
 onMounted(() => { loadDms(); loadMods() })
 onBeforeUnmount(stopWs)
