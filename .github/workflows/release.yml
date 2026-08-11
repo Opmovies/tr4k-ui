@@ -11,9 +11,6 @@ permissions:
   contents: write
   packages: write
 
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-
 jobs:
   build:
     name: Build ${{ matrix.platform }}
@@ -27,6 +24,10 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-24.04-arm # runner ARM natif (gratuit sur dépôt public)
     steps:
+      # les refs Docker exigent des minuscules (le login GitHub peut en contenir)
+      - name: Image en minuscules
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - uses: docker/setup-buildx-action@v4
@@ -71,6 +72,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Image en minuscules
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - uses: actions/download-artifact@v7
         with:
           path: /tmp/digests
