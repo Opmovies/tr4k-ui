@@ -67,7 +67,7 @@
           <span v-if="updating === p.id" class="spin" />
           <RefreshCw v-else :size="14" /> Mettre à jour
         </button>
-        <button v-if="p.settings?.fields?.length && p.enabled" class="ghost small" @click="openSettings = openSettings === p.id ? '' : p.id">
+        <button v-if="hasSettings(p)" class="ghost small" @click="openSettings = openSettings === p.id ? '' : p.id">
           <Settings2 :size="14" /> Réglages
           <ChevronDown :size="13" :style="openSettings === p.id ? 'transform:rotate(180deg)' : ''" />
         </button>
@@ -76,8 +76,9 @@
       </div>
       <div v-if="loadError(p.id)" class="errbox" style="margin-top:10px; font-size:12px">{{ loadError(p.id) }}</div>
       <div v-if="openSettings === p.id" class="plug-settings">
-        <PluginSettingsForm :plugin-id="p.id" :fields="p.settings.fields" />
-        <!-- actions fournies par le plugin lui-même (ex. tester la connexion) -->
+        <PluginSettingsForm v-if="p.settings?.fields?.length" :plugin-id="p.id" :fields="p.settings.fields" />
+        <!-- ancre du plugin : actions sous le formulaire (ex. tester la connexion),
+             ou UI de réglages complète si le manifest ne déclare aucun champ -->
         <PluginSlot :name="`plugin.settings.${p.id}`" :ctx="p" />
       </div>
     </div>
@@ -120,7 +121,7 @@ import { resolvePluginIcon } from '~/composables/usePluginHost'
 useHead({ title: 'Plugins — TR4KUI' })
 
 const { push: toast } = useToast()
-const { loadedPlugins } = usePluginHost()
+const { loadedPlugins, slotEntries } = usePluginHost()
 const { data, pending, refresh } = useFetch('/api/plugins', { server: false })
 const plugins = computed(() => data.value?.plugins || [])
 
@@ -165,6 +166,8 @@ async function updatePlugin(p) {
 }
 
 function iconOf(p) { return resolvePluginIcon(p.icon) }
+// un plugin a des réglages s'il déclare des champs OU s'il fournit sa propre UI via l'ancre
+function hasSettings(p) { return p.enabled && (p.settings?.fields?.length || slotEntries(`plugin.settings.${p.id}`).length) }
 function loadError(id) { return loadedPlugins.value.find((l) => l.id === id)?.error || '' }
 
 function onDrop(e) {

@@ -14,6 +14,10 @@ export type PluginTab = { pluginId: string; id: string; label: string; icon?: an
 export type LoadedPlugin = { id: string; name: string; error?: string }
 
 const slots = reactive(new Map<string, SlotEntry[]>())
+// Brouillons des formulaires de réglages (PluginSettingsForm) : permet à l'ancre
+// `plugin.settings.<id>` de lire les valeurs NON ENREGISTRÉES (ex. tester la connexion
+// avant d'enregistrer). Les champs `secret` inchangés portent encore la sentinelle '••••'.
+const settingsDrafts = reactive(new Map<string, Record<string, any>>())
 const navItems = ref<PluginNavItem[]>([])
 const detailTabs = ref<PluginTab[]>([])
 const loadedPlugins = ref<LoadedPlugin[]>([])
@@ -52,6 +56,10 @@ export function usePluginHost() {
     hooks, filters: filterApi,
   }
 }
+
+/** Enregistrement du brouillon de réglages d'un plugin (monté/démonté avec son formulaire). */
+export function registerSettingsDraft(id: string, values: Record<string, any>) { settingsDrafts.set(id, values) }
+export function unregisterSettingsDraft(id: string) { settingsDrafts.delete(id) }
 
 /** Résout le champ `icon` d'un manifest/plugin : nom lucide → composant, sinon emoji/texte. */
 export function resolvePluginIcon(icon?: string): { component?: any; text?: string } {
@@ -93,6 +101,9 @@ export function createPluginApi(id: string, manifest: any, deps: { router: any; 
     settings: {
       get: async () => (await $fetch<{ values: Record<string, any> }>(`/api/plugins/${id}/settings`)).values,
       set: (values: Record<string, any>) => $fetch(`/api/plugins/${id}/settings`, { method: 'PUT', body: values }),
+      // Brouillon RÉACTIF du formulaire de réglages standard (null si non affiché) :
+      // permet de tester les valeurs saisies sans obliger l'utilisateur à enregistrer.
+      draft: () => settingsDrafts.get(id) || null,
     },
     // Appels vers les routes serveur du plugin (/api/px/<id>/...)
     fetch: (path: string, opts: any = {}) => $fetch(`/api/px/${id}${path.startsWith('/') ? path : '/' + path}`, opts),

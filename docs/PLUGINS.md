@@ -174,6 +174,7 @@ Le contexte `ctx` :
 | `api.hooks.addAction(name, fn, priority = 10)` / `doAction(name, payload)` | Actions façon WordPress (voir ANCRES.md). |
 | `api.filters.addFilter(name, fn, priority = 10)` / `applyFilters(name, value, ctx?)` | Filtres de données (voir ANCRES.md). |
 | `api.settings.get()` / `api.settings.set(values)` | Réglages de l'utilisateur courant (champs `secret` masqués par la sentinelle). |
+| `api.settings.draft()` | Brouillon **réactif** du formulaire de réglages standard sur `/plugins` (`null` si le formulaire n'est pas affiché). Les champs `secret` inchangés portent la sentinelle. |
 | `api.fetch(path, opts?)` | `$fetch` vers `/api/px/<id><path>` (tes routes server.mjs). |
 | `api.asset(file)` | URL d'un fichier du plugin (`/api/plugins/<id>/asset/<file>`). |
 
@@ -196,9 +197,37 @@ npm run plugin:pack -- ../plugins-src/mon-plugin
 ### Bouton « Tester la connexion » (pattern recommandé)
 
 Chaque plugin dispose d'une ancre `plugin.settings.<id>` rendue **sous son formulaire
-de réglages** sur `/plugins`. Y brancher un bouton qui appelle une route `GET /test`
-du server.mjs (toujours répondre 200 `{ok, error?}` pour un affichage inline propre).
-⚠️ Le test porte sur les réglages **enregistrés**, pas le brouillon du formulaire.
+de réglages** sur `/plugins`. Y brancher un bouton qui teste le **brouillon** du
+formulaire — l'utilisateur n'a pas à enregistrer d'abord :
+
+```js
+api.ui.registerSlot(`plugin.settings.${api.id}`, {
+  template: `<button class="ghost small" @click="test">Tester la connexion</button>`,
+  setup() {
+    async function test() {
+      // brouillon réactif du formulaire (sentinelle '••••' sur les secrets inchangés)
+      const draft = api.settings.draft()
+      const r = await api.fetch('/test', { method: 'POST', body: { ...draft } })
+      api.ui.toast(r.ok ? 'Connecté' : 'Échec', r.error)
+    }
+    return { test }
+  },
+})
+```
+
+Côté server.mjs, la route `POST /test` fusionne le brouillon reçu avec `ctx.settings`
+(une valeur à la sentinelle `'••••'` = « garder la valeur stockée »), teste, et répond
+toujours 200 `{ok, error?}` pour un affichage inline propre — **sans rien enregistrer**.
+
+### UI de réglages entièrement custom
+
+Si le formulaire standard ne suffit pas (listes de configurations, champs dynamiques…),
+déclare `"settings": { "fields": [] }` dans le manifest : l'hôte n'affiche pas de
+formulaire mais rend quand même l'ancre `plugin.settings.<id>` (le bouton « Réglages »
+apparaît dès que le plugin enregistre cette ancre). Le plugin gère alors lui-même son UI
+et son stockage via des routes server.mjs + `ctx.settings`/`ctx.saveSettings` (chiffrés
+par l'hôte) — à lui de masquer ses secrets dans ses réponses. Exemple complet : le
+plugin seedbox (multi-configs, multi-providers).
 
 ## Administration
 

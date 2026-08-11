@@ -61,7 +61,7 @@ slot (triés par `order` croissant).
 | `profile.duplicates.actions` | Onglet Doublons du profil, à côté du bouton .torrent de chaque ligne (`pages/profil.vue`) | le doublon `{ retired_slug, retired_name, kept_slug, kept_name, kept_seeders, size_bytes, scheduled_for }` |
 | `stats.kpis` | Page `/stats`, à la suite des KPI 24 h / 7 j | l'objet stats complet `{ summary, statistics, snapshots, … }` |
 | `shop.item.actions` | Carte d'un article de la boutique, à côté du prix | l'article `{ id, name, price, bonus_bytes, … }` |
-| `plugin.settings.<id>` | Sous le formulaire de réglages du plugin `<id>` sur `/plugins` — ex. bouton « Tester la connexion » | le manifest + état `{ …manifest, enabled }` |
+| `plugin.settings.<id>` | Panneau de réglages du plugin `<id>` sur `/plugins` : sous le formulaire standard (ex. bouton « Tester la connexion », sur le brouillon via `api.settings.draft()`), ou **seul** si le manifest ne déclare aucun champ — le plugin fournit alors toute son UI de réglages | le manifest + état `{ …manifest, enabled }` |
 
 **`stop`** : dans les lignes/cartes qui sont des `NuxtLink`, le slot est enveloppé d'un
 `@click.stop.prevent` (prop `stop` de `PluginSlot`) — les clics de tes boutons ne

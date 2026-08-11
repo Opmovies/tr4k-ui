@@ -16,7 +16,7 @@ const files = {}
 ;(function walk(d) {
   for (const e of readdirSync(d, { withFileTypes: true })) {
     const p = join(d, e.name)
-    if (e.name === '.DS_Store' || e.name === 'node_modules') continue
+    if (e.name === '.DS_Store' || e.name === 'node_modules' || e.name === '.git' || e.name === '.gitignore') continue
     if (e.isDirectory()) walk(p)
     else files[relative(dir, p).split('\\').join('/')] = readFileSync(p)
   }

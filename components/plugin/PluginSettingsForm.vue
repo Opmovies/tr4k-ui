@@ -24,6 +24,7 @@
 
 <script setup>
 import { Save } from 'lucide-vue-next'
+import { registerSettingsDraft, unregisterSettingsDraft } from '~/composables/usePluginHost'
 
 const props = defineProps({
   pluginId: { type: String, required: true },
@@ -35,6 +36,11 @@ const values = reactive({})
 const loading = ref(true)
 const saving = ref(false)
 const saved = ref(false)
+
+// le brouillon est exposé au plugin via api.settings.draft() (ex. « Tester la connexion »
+// sur les valeurs saisies, sans enregistrer)
+registerSettingsDraft(props.pluginId, values)
+onBeforeUnmount(() => unregisterSettingsDraft(props.pluginId))
 
 onMounted(async () => {
   try {

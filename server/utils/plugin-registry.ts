@@ -19,8 +19,8 @@ export type RegistryEntry = {
 export const PLUGIN_REGISTRY: RegistryEntry[] = [
   {
     id: 'seedbox-qbit',
-    name: 'Seedbox qBittorrent',
-    description: "Envoie les torrents vers un qBittorrent distant, affiche l'état de la seedbox et gère le cross-seed.",
+    name: 'Seedbox',
+    description: "Envoie les torrents vers ta ou tes seedbox (qBittorrent, Hydra…) : multi-configurations, cross-seed, suivi.",
     author: 'Opmovies',
     icon: 'HardDriveDownload',
     repository: 'Opmovies/tr4k-ui-seedbox-qbit',
