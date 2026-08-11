@@ -2,7 +2,7 @@ services:
   tr4k-ui:
     # image publiée à chaque release (docker compose pull pour mettre à jour) ;
     # `docker compose up -d --build` reconstruit localement si vous préférez
-    image: ghcr.io/n-ramos/tr4k-ui:latest
+    image: ghcr.io/opmovies/tr4k-ui:latest
     build: .
     container_name: tr4k-ui
     restart: unless-stopped

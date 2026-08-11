@@ -41,7 +41,7 @@ describe('pickPluginAsset', () => {
 
 describe('REPO_RE', () => {
   it('accepte owner/repo et rejette le reste', () => {
-    expect(REPO_RE.test('n-ramos/tr4k-ui')).toBe(true)
+    expect(REPO_RE.test('Opmovies/tr4k-ui')).toBe(true)
     expect(REPO_RE.test('a.b/c_d-e')).toBe(true)
     expect(REPO_RE.test('https://github.com/a/b')).toBe(false)
     expect(REPO_RE.test('a/b/c')).toBe(false)

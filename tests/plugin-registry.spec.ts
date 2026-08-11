@@ -16,6 +16,6 @@ describe('PLUGIN_REGISTRY', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
   it('référence le plugin seedbox-qbit', () => {
-    expect(PLUGIN_REGISTRY.find((e) => e.id === 'seedbox-qbit')?.repository).toBe('n-ramos/tr4k-ui-seedbox-qbit')
+    expect(PLUGIN_REGISTRY.find((e) => e.id === 'seedbox-qbit')?.repository).toBe('Opmovies/tr4k-ui-seedbox-qbit')
   })
 })

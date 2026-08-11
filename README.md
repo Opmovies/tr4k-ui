@@ -8,6 +8,26 @@ façon WordPress. Application **Nuxt 3** en SPA doublée d'un **proxy Nitro prud
 > ⚠️ Client tiers non officiel. Utilisez-le avec votre propre compte, dans le respect
 > des règles du tracker. Aucun secret ni donnée de compte n'est inclus dans ce dépôt.
 
+## Aperçu
+
+| Thème sombre | Thème clair |
+|---|---|
+| ![Liste des torrents — thème sombre](docs/screenshots/torrents-dark.png) | ![Liste des torrents — thème clair](docs/screenshots/torrents-light.png) |
+
+![Statistiques — ratio, uploads et courbe cumulée](docs/screenshots/stats-dark.png)
+
+## Installation express
+
+Docker installé ? Une seule commande télécharge l'image, génère la clé de session et démarre l'app :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Opmovies/tr4k-ui/main/install.sh | bash
+```
+
+L'app écoute ensuite sur [http://localhost:3010](http://localhost:3010). Variables optionnelles :
+`PORT=8080 DIR=~/apps/tr4k-ui curl -fsSL … | bash`. Le script est idempotent (relancez-le pour
+mettre à jour, votre `.env` est conservé).
+
 ---
 
 ## Sommaire
@@ -70,7 +90,7 @@ docker run -d --name tr4k-ui \
   -e NUXT_SESSION_SECRET="$(openssl rand -hex 32)" \
   -v tr4k-data:/app/.data \
   --restart unless-stopped \
-  ghcr.io/n-ramos/tr4k-ui:latest
+  ghcr.io/opmovies/tr4k-ui:latest
 ```
 
 > ⚠️ Générez `NUXT_SESSION_SECRET` **une seule fois** et réutilisez la même valeur : en

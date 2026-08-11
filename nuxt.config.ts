@@ -31,7 +31,7 @@ export default defineNuxtConfig({
     tr4kerApiKey: '',
     public: {
       appVersion: pkg.version, // affichée dans Paramètres, comparée aux releases GitHub
-      appRepo: 'n-ramos/tr4k-ui', // surchargeable par NUXT_PUBLIC_APP_REPO (fork)
+      appRepo: 'Opmovies/tr4k-ui', // surchargeable par NUXT_PUBLIC_APP_REPO (fork)
     },
   },
 })

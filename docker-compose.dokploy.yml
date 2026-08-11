@@ -13,12 +13,12 @@
 #   4) Déployez.
 #
 # Mise à jour : bouton « Redeploy » de Dokploy (re-tire l'image `latest`), ou épinglez une
-# version (`ghcr.io/n-ramos/tr4k-ui:1.4.1`) et changez le tag. Dokploy peut aussi redéployer
+# version (`ghcr.io/opmovies/tr4k-ui:1.4.1`) et changez le tag. Dokploy peut aussi redéployer
 # automatiquement via un webhook. Le bouton « Mettre à jour » intégré à l'app n'est PAS actif
 # ici (il dépend de watchtower, volontairement absent) — c'est Dokploy qui pilote les MàJ.
 services:
   tr4k-ui:
-    image: ghcr.io/n-ramos/tr4k-ui:latest
+    image: ghcr.io/opmovies/tr4k-ui:latest
     # IMPORTANT sur Dokploy : sans ça, un « Redeploy » recrée le conteneur mais réutilise
     # l'image `latest` déjà en cache → pas de mise à jour. `always` force le pull à chaque
     # déploiement. (Alternative : épingler une version, ex. :1.4.2, et la changer à la main.)
