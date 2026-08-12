@@ -193,9 +193,12 @@ async function resync() {
     const r = await $fetch(`/api/t/conversations/${c.id}/messages`)
     if (current.value?.id !== c.id) return // conversation changée entre-temps
     const fresh = (r.messages || []).slice().reverse()
-    // conserve les échos optimistes que le serveur n'a pas encore renvoyés
+    // conserve : les messages WS arrivés PENDANT le fetch (absents du snapshot, qui peut
+    // sortir du cache 20 s du proxy) + les échos optimistes pas encore renvoyés par le serveur
+    const lastId = fresh.length ? fresh[fresh.length - 1].id : 0
+    const live = messages.value.filter((x) => x.id > lastId && !fresh.some((f) => f.id === x.id))
     const pending = messages.value.filter((p) => p.id < 0 && !fresh.some((f) => f.sender_id === p.sender_id && f.body === p.body))
-    messages.value = [...fresh, ...pending]
+    messages.value = [...fresh, ...live, ...pending]
     hasMore.value = !!r.has_more
     if (props.visible && document.visibilityState === 'visible') wsSend({ type: 'read', conv_id: c.id })
     scrollDown(false)
@@ -230,9 +233,19 @@ function handle(m) {
     const viewing = props.visible && cid === current.value?.id && document.visibilityState === 'visible'
     if (m.sender) delete typing[m.sender] // son message est arrivé → il n'écrit plus
     if (cid === current.value?.id) {
-      // écho optimiste : remplace le message temporaire (id négatif) par la version serveur
-      const idx = mine ? messages.value.findIndex((x) => x.id < 0 && x.body === m.body) : -1
       const msg = { ...m, created_at: m.at || m.created_at }
+      // déjà affiché (replay du tracker à la reconnexion, event arrivé pendant un resync…)
+      // → mise à jour en place, jamais de doublon
+      const dup = m.id != null ? messages.value.findIndex((x) => x.id === m.id) : -1
+      if (dup >= 0) { messages.value.splice(dup, 1, msg); return }
+      // écho optimiste : remplace le message temporaire (id négatif) par la version serveur.
+      // Repli sur le plus ancien temporaire si le corps ne matche pas (le serveur peut
+      // normaliser le texte) — sinon la bulle temporaire restait EN PLUS de la vraie.
+      let idx = -1
+      if (mine) {
+        idx = messages.value.findIndex((x) => x.id < 0 && x.body === m.body)
+        if (idx < 0) idx = messages.value.findIndex((x) => x.id < 0)
+      }
       if (idx >= 0) messages.value.splice(idx, 1, msg)
       else { messages.value.push(msg); if (!mine && !viewing) { unread[cid] = (unread[cid] || 0) + 1 } }
       scrollDown(chatSettings.autoScroll, true)
@@ -329,16 +342,21 @@ async function openConversation(c) {
   }
 }
 
+let olderBusy = false
 async function loadOlder() {
   const first = messages.value[0]
-  if (!first || !current.value) return
-  const r = await $fetch(`/api/t/conversations/${current.value.id}/messages`, { query: { before: first.id } })
-  // ancre la vue : Safari n'a pas de scroll anchoring, sans ça le prepend fait sauter en haut
-  const el = msgBox.value
-  const prevH = el?.scrollHeight || 0, prevTop = el?.scrollTop || 0
-  messages.value = [...(r.messages || []).slice().reverse(), ...messages.value]
-  hasMore.value = !!r.has_more
-  nextTick(() => { if (el) el.scrollTop = prevTop + (el.scrollHeight - prevH) })
+  if (!first || !current.value || olderBusy) return // anti double-clic : sinon le même bloc se prépend deux fois
+  olderBusy = true
+  try {
+    const r = await $fetch(`/api/t/conversations/${current.value.id}/messages`, { query: { before: first.id } })
+    // ancre la vue : Safari n'a pas de scroll anchoring, sans ça le prepend fait sauter en haut
+    const el = msgBox.value
+    const prevH = el?.scrollHeight || 0, prevTop = el?.scrollTop || 0
+    const olds = (r.messages || []).slice().reverse().filter((o) => !messages.value.some((x) => x.id === o.id))
+    messages.value = [...olds, ...messages.value]
+    hasMore.value = !!r.has_more
+    nextTick(() => { if (el) el.scrollTop = prevTop + (el.scrollHeight - prevH) })
+  } finally { olderBusy = false }
 }
 
 // envoi : écho optimiste (id négatif) remplacé quand le serveur renvoie le message
