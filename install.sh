@@ -1,20 +1,13 @@
-#!/usr/bin/env bash
-# Installation express de TR4K UI (Docker requis) :
-#
-#   curl -fsSL https://raw.githubusercontent.com/Opmovies/tr4k-ui/main/install.sh | bash
-#
-# Variables optionnelles (à placer devant la commande) :
-#   DIR=~/tr4k-ui   dossier d'installation (défaut : ~/tr4k-ui)
-#   PORT=3010       port exposé sur l'hôte (défaut : 3010)
 set -euo pipefail
 
-# tout le script est enveloppé dans main() : bash le parse en entier avant de
-# l'exécuter — indispensable en `curl | bash` (sinon docker & co consomment le flux)
 main() {
 
   REPO_RAW="https://raw.githubusercontent.com/Opmovies/tr4k-ui/main"
   DIR="${DIR:-$HOME/tr4k-ui}"
   PORT="${PORT:-3010}"
+  CONTAINER="${CONTAINER:-tr4k-ui}"     # 2ᵉ instance sur la même machine : CONTAINER=tr4k-ui-2
+  MODE="${MODE:-}"                      # login | solo — sinon la question est posée
+  TR4KER_API_KEY="${TR4KER_API_KEY:-}"  # requis en MODE=solo non interactif
 
   say() { printf '\033[1;32m▸\033[0m %s\n' "$*"; }
   die() { printf '\033[1;31m✖\033[0m %s\n' "$*" >&2; exit 1; }
@@ -26,9 +19,8 @@ main() {
   mkdir -p "$DIR" && cd "$DIR"
   say "Installation dans $DIR"
 
-  # une autre instance (hors de ce dossier) occupe déjà le nom de conteneur « tr4k-ui »
-  if [ ! -f docker-compose.yml ] && docker inspect tr4k-ui >/dev/null 2>&1; then
-    die "Un conteneur « tr4k-ui » existe déjà sur cette machine (autre installation). Mettez-le à jour depuis son dossier d'origine, ou supprimez-le avant de réinstaller."
+  if [ ! -f docker-compose.yml ] && docker inspect "$CONTAINER" >/dev/null 2>&1; then
+    die "Un conteneur « $CONTAINER » existe déjà sur cette machine (autre installation). Mettez-le à jour depuis son dossier d'origine, supprimez-le, ou installez une seconde instance : CONTAINER=tr4k-ui-2 PORT=3011 …"
   fi
 
   curl -fsSL "$REPO_RAW/docker-compose.yml" -o docker-compose.yml
@@ -36,6 +28,33 @@ main() {
   if [ -f .env ]; then
     say "Fichier .env existant conservé"
   else
+    # ---- choix du mode d'authentification ----
+    # stdin est le pipe en `curl | bash` : les questions passent par /dev/tty.
+    # Sans terminal (CI, provisioning), repli sur le mode login — ou MODE=… en env.
+    if [ -z "$MODE" ]; then
+      if [ -e /dev/tty ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+        {
+          printf '\nDeux façons d'\''utiliser TR4K UI :\n'
+          printf '  1) Multi-comptes — chacun se connecte avec son identifiant + mot de passe TR4KER (recommandé pour partager)\n'
+          printf '  2) Solo — ta clé API TR4KER, aucun écran de connexion\n'
+          printf 'Ton choix [1/2, défaut 1] : '
+        } >/dev/tty
+        IFS= read -r choice </dev/tty || choice=""
+        case "$choice" in 2 | solo | SOLO) MODE=solo ;; *) MODE=login ;; esac
+      else
+        MODE=login
+      fi
+    fi
+    case "$MODE" in login | solo) ;; *) die "MODE invalide : « $MODE » (attendu : login ou solo)" ;; esac
+
+    if [ "$MODE" = solo ] && [ -z "$TR4KER_API_KEY" ]; then
+      [ -e /dev/tty ] || die "MODE=solo sans terminal : passez TR4KER_API_KEY=tr4k_… en variable d'environnement"
+      printf 'Clé API TR4KER (tr4k_…, saisie masquée) : ' >/dev/tty
+      IFS= read -rs TR4KER_API_KEY </dev/tty || TR4KER_API_KEY=""
+      printf '\n' >/dev/tty
+      [ -n "$TR4KER_API_KEY" ] || die "Clé API vide — elle se trouve sur tr4ker.net (profil → clé API)"
+    fi
+
     if command -v openssl >/dev/null 2>&1; then
       SECRET=$(openssl rand -hex 32)
       WT_TOKEN=$(openssl rand -hex 16)
@@ -45,12 +64,21 @@ main() {
     fi
     {
       echo "PORT=$PORT"
+      [ "$CONTAINER" = tr4k-ui ] || echo "TR4KUI_CONTAINER=$CONTAINER"
       echo "NUXT_SESSION_SECRET=$SECRET"
-      # exigé par compose même si le profil autoupdate est inactif ; sert de jeton
-      # prêt à l'emploi si vous activez :  docker compose --profile autoupdate up -d
       echo "WATCHTOWER_TOKEN=$WT_TOKEN"
+      if [ "$MODE" = solo ]; then
+        echo "NUXT_ALLOW_CONFIG_KEY=1"
+        echo "NUXT_TR4KER_API_KEY=$TR4KER_API_KEY"
+      fi
     } > .env
-    say "Fichier .env créé (clé de session générée — ne la régénérez pas, cela invaliderait les sessions)"
+    chmod 600 .env
+    if [ "$MODE" = solo ]; then
+      say "Fichier .env créé — mode SOLO (clé API, pas d'écran de connexion)"
+    else
+      say "Fichier .env créé — mode MULTI-COMPTES (connexion par identifiant TR4KER)"
+    fi
+    say "(clé de session générée — ne la régénérez pas, cela invaliderait les sessions)"
   fi
 
   say "Téléchargement de l'image et démarrage…"

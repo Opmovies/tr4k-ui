@@ -4,7 +4,9 @@ services:
     # `docker compose up -d --build` reconstruit localement si vous préférez
     image: ghcr.io/opmovies/tr4k-ui:latest
     build: .
-    container_name: tr4k-ui
+    # surchargeable (TR4KUI_CONTAINER=tr4k-ui-2 dans .env, posé par install.sh)
+    # pour une seconde instance sur la même machine
+    container_name: ${TR4KUI_CONTAINER:-tr4k-ui}
     restart: unless-stopped
     labels:
       # permet à watchtower (profil autoupdate) de cibler ce conteneur
@@ -19,6 +21,10 @@ services:
       # Réservez ces admins de plugins en instance multi-comptes (ex: "12,34").
       # Sans ça, tout compte peut installer un plugin = exécution de code serveur.
       NUXT_PLUGIN_ADMINS: ${NUXT_PLUGIN_ADMINS:-}
+      # Mode SOLO (install.sh) : clé API directe, aucun écran de connexion.
+      # Laissez VIDE en multi-comptes — le login TR4KER redevient obligatoire.
+      NUXT_ALLOW_CONFIG_KEY: ${NUXT_ALLOW_CONFIG_KEY:-}
+      NUXT_TR4KER_API_KEY: ${NUXT_TR4KER_API_KEY:-}
       # Mise à jour de l'app en un clic depuis l'UI (délègue à watchtower).
       # Renseignez WATCHTOWER_TOKEN + lancez le profil autoupdate pour l'activer.
       NUXT_WATCHTOWER_URL: http://watchtower:8080
