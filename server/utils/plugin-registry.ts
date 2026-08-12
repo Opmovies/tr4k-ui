@@ -26,4 +26,13 @@ export const PLUGIN_REGISTRY: RegistryEntry[] = [
     repository: 'Opmovies/tr4k-ui-seedbox-qbit',
     homepage: 'https://github.com/Opmovies/tr4k-ui-seedbox-qbit',
   },
+  {
+    id: 'themes',
+    name: 'Thèmes',
+    description: "Personnalise les couleurs de l'interface : préréglages de palettes et éditeur complet (sombre + clair), par utilisateur.",
+    author: 'Opmovies',
+    icon: 'Palette',
+    repository: 'Opmovies/tr4k-ui-themes',
+    homepage: 'https://github.com/Opmovies/tr4k-ui-themes',
+  },
 ]
