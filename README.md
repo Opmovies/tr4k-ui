@@ -24,9 +24,16 @@ Docker installé ? Une seule commande télécharge l'image, génère la clé de 
 curl -fsSL https://raw.githubusercontent.com/Opmovies/tr4k-ui/main/install.sh | bash
 ```
 
+Le script demande le mode d'utilisation :
+
+1. **Multi-comptes** (défaut) — chacun se connecte avec son identifiant + mot de passe TR4KER ;
+2. **Solo** — votre clé API TR4KER (saisie masquée), aucun écran de connexion.
+
 L'app écoute ensuite sur [http://localhost:3010](http://localhost:3010). Variables optionnelles :
-`PORT=8080 DIR=~/apps/tr4k-ui curl -fsSL … | bash`. Le script est idempotent (relancez-le pour
-mettre à jour, votre `.env` est conservé).
+`PORT=8080 DIR=~/apps/tr4k-ui curl -fsSL … | bash`, plus `MODE=solo TR4KER_API_KEY=tr4k_…` pour une
+installation sans question (scripts/CI ; sans terminal le mode multi-comptes est retenu) et
+`CONTAINER=tr4k-ui-2` pour une seconde instance sur la même machine. Le script est idempotent
+(relancez-le pour mettre à jour, votre `.env` est conservé).
 
 ---
 
