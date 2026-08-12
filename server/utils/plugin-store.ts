@@ -31,9 +31,14 @@ export function loadPluginSettings(id: string, auth: Auth): Record<string, any> 
 }
 
 export function savePluginSettings(id: string, auth: Auth, values: Record<string, any>): Record<string, any> {
-  const m = readManifest(id)
-  const allowed = new Set((m?.settings?.fields || []).map((f) => f.key))
-  const clean = Object.fromEntries(Object.entries(values || {}).filter(([k]) => allowed.has(k)))
+  const fields = readManifest(id)?.settings?.fields || []
+  // Aucun champ déclaré = UI de réglages entièrement custom (docs/PLUGINS.md) : le plugin
+  // gère son propre schéma via ctx.saveSettings, on enregistre tel quel. Le filtrage par
+  // clés déclarées ne vaut que pour un formulaire standard.
+  const allowed = new Set(fields.map((f) => f.key))
+  const clean = fields.length
+    ? Object.fromEntries(Object.entries(values || {}).filter(([k]) => allowed.has(k)))
+    : { ...(values || {}) }
   mkdirSync(join(PLUGIN_DATA_DIR, id), { recursive: true })
   writeFileSync(settingsPath(id, auth), encryptSession(clean), { mode: 0o600 })
   return clean
