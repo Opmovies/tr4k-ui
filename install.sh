@@ -3,52 +3,79 @@ set -euo pipefail
 main() {
 
   REPO_RAW="https://raw.githubusercontent.com/Opmovies/tr4k-ui/main"
-  DIR="${DIR:-$HOME/tr4k-ui}"
-  PORT="${PORT:-3010}"
-  CONTAINER="${CONTAINER:-tr4k-ui}"     # 2ᵉ instance sur la même machine : CONTAINER=tr4k-ui-2
-  MODE="${MODE:-}"                      # login | solo — sinon la question est posée
+  # Chaque variable fournie en env SAUTE la question correspondante (scripts/CI) :
+  #   DIR=~/apps/tr4k-ui PORT=8080 MODE=solo TR4KER_API_KEY=tr4k_… CONTAINER=tr4k-ui-2
+  DIR="${DIR:-}"
+  PORT="${PORT:-}"
+  CONTAINER="${CONTAINER:-}"
+  MODE="${MODE:-}"                      # login | solo
   TR4KER_API_KEY="${TR4KER_API_KEY:-}"  # requis en MODE=solo non interactif
 
   say() { printf '\033[1;32m▸\033[0m %s\n' "$*"; }
   die() { printf '\033[1;31m✖\033[0m %s\n' "$*" >&2; exit 1; }
 
+  # stdin est le pipe en `curl | bash` : les questions passent par /dev/tty.
+  has_tty() { [ -e /dev/tty ] && [ -r /dev/tty ] && [ -w /dev/tty ]; }
+  ask() { # ask "question" "défaut" → réponse du terminal, ou le défaut (vide/pas de tty)
+    local a=""
+    if has_tty; then
+      printf '%s' "$1" >/dev/tty
+      IFS= read -r a </dev/tty || a=""
+    fi
+    printf '%s' "${a:-$2}"
+  }
+
   command -v docker >/dev/null 2>&1 || die "Docker est requis : https://docs.docker.com/get-docker/"
   docker compose version >/dev/null 2>&1 || die "Docker Compose v2 est requis (commande « docker compose »)"
   docker info >/dev/null 2>&1 || die "Le démon Docker ne répond pas (service démarré ? droits suffisants ?)"
 
+  if [ -z "$DIR" ]; then
+    DIR=$(ask "Dossier d'installation [$HOME/tr4k-ui] : " "$HOME/tr4k-ui")
+    DIR=${DIR/#\~/$HOME}
+  fi
+
   mkdir -p "$DIR" && cd "$DIR"
   say "Installation dans $DIR"
 
-  if [ ! -f docker-compose.yml ] && docker inspect "$CONTAINER" >/dev/null 2>&1; then
-    die "Un conteneur « $CONTAINER » existe déjà sur cette machine (autre installation). Mettez-le à jour depuis son dossier d'origine, supprimez-le, ou installez une seconde instance : CONTAINER=tr4k-ui-2 PORT=3011 …"
+  # conflit de nom : une autre installation tourne déjà sur cette machine
+  if [ ! -f docker-compose.yml ] && docker inspect "${CONTAINER:-tr4k-ui}" >/dev/null 2>&1; then
+    if [ -z "$CONTAINER" ] && has_tty; then
+      say "Un conteneur « tr4k-ui » existe déjà (autre installation sur cette machine)."
+      CONTAINER=$(ask "Nom du conteneur pour CETTE instance [tr4k-ui-2] : " "tr4k-ui-2")
+    fi
+    docker inspect "${CONTAINER:-tr4k-ui}" >/dev/null 2>&1 && \
+      die "Le conteneur « ${CONTAINER:-tr4k-ui} » existe déjà. Mettez-le à jour depuis son dossier d'origine, supprimez-le, ou choisissez un autre nom (CONTAINER=…)."
   fi
+  CONTAINER="${CONTAINER:-tr4k-ui}"
 
   curl -fsSL "$REPO_RAW/docker-compose.yml" -o docker-compose.yml
 
   if [ -f .env ]; then
-    say "Fichier .env existant conservé"
+    say "Fichier .env existant conservé (port et mode inchangés)"
   else
+    if [ -z "$PORT" ]; then
+      PORT=$(ask "Port d'écoute [3010] : " 3010)
+    fi
+    case "$PORT" in '' | *[!0-9]*) die "Port invalide : « $PORT »" ;; esac
+
     # ---- choix du mode d'authentification ----
-    # stdin est le pipe en `curl | bash` : les questions passent par /dev/tty.
-    # Sans terminal (CI, provisioning), repli sur le mode login — ou MODE=… en env.
     if [ -z "$MODE" ]; then
-      if [ -e /dev/tty ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
+      if has_tty; then
         {
           printf '\nDeux façons d'\''utiliser TR4K UI :\n'
           printf '  1) Multi-comptes — chacun se connecte avec son identifiant + mot de passe TR4KER (recommandé pour partager)\n'
           printf '  2) Solo — ta clé API TR4KER, aucun écran de connexion\n'
-          printf 'Ton choix [1/2, défaut 1] : '
         } >/dev/tty
-        IFS= read -r choice </dev/tty || choice=""
+        choice=$(ask 'Ton choix [1/2, défaut 1] : ' 1)
         case "$choice" in 2 | solo | SOLO) MODE=solo ;; *) MODE=login ;; esac
       else
-        MODE=login
+        MODE=login # pas de terminal → mode historique
       fi
     fi
     case "$MODE" in login | solo) ;; *) die "MODE invalide : « $MODE » (attendu : login ou solo)" ;; esac
 
     if [ "$MODE" = solo ] && [ -z "$TR4KER_API_KEY" ]; then
-      [ -e /dev/tty ] || die "MODE=solo sans terminal : passez TR4KER_API_KEY=tr4k_… en variable d'environnement"
+      has_tty || die "MODE=solo sans terminal : passez TR4KER_API_KEY=tr4k_… en variable d'environnement"
       printf 'Clé API TR4KER (tr4k_…, saisie masquée) : ' >/dev/tty
       IFS= read -rs TR4KER_API_KEY </dev/tty || TR4KER_API_KEY=""
       printf '\n' >/dev/tty
