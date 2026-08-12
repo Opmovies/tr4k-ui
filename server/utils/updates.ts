@@ -29,11 +29,13 @@ export type ReleaseInfo = {
 const relCache = new Map<string, { at: number; data: ReleaseInfo | null }>()
 const TTL = 6 * 3600_000
 
-/** Dernière release d'un dépôt GitHub (`owner/repo`). null = pas de release / injoignable. */
-export async function latestRelease(repo: string): Promise<ReleaseInfo | null> {
+/** Dernière release d'un dépôt GitHub (`owner/repo`). null = pas de release / injoignable.
+ *  `force` ignore le cache 6 h (vérification manuelle, installation, mise à jour) —
+ *  le repli « stale » sur erreur GitHub reste actif. */
+export async function latestRelease(repo: string, force = false): Promise<ReleaseInfo | null> {
   if (!REPO_RE.test(repo)) return null
   const hit = relCache.get(repo)
-  if (hit && Date.now() - hit.at < TTL) return hit.data
+  if (!force && hit && Date.now() - hit.at < TTL) return hit.data
   try {
     const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'tr4k-ui-updater' },

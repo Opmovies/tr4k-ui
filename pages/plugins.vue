@@ -42,7 +42,13 @@
     </div>
 
     <!-- liste des plugins installés -->
-    <h2 class="sec-title"><Puzzle :size="16" /> Installés</h2>
+    <h2 class="sec-title" style="display:flex; gap:10px; align-items:center">
+      <Puzzle :size="16" /> Installés
+      <span style="flex:1" />
+      <button class="ghost small" :disabled="checking" title="Re-vérifie les releases GitHub de l'app et des plugins installés (ignore le cache)" @click="checkUpdates">
+        <span v-if="checking" class="spin" /><RefreshCw v-else :size="13" /> Vérifier les mises à jour
+      </button>
+    </h2>
     <div v-if="pending" class="empty"><span class="spin" /></div>
     <div v-else-if="!plugins.length" class="empty">Aucun plugin installé pour l'instant.</div>
     <div v-for="p in plugins" :key="p.id" class="card plug-card">
@@ -149,9 +155,25 @@ async function installFromMarket(m) {
 }
 
 // mises à jour dispo (état partagé avec la sidebar : app + plugins)
-const { appUpdate, pluginUpdates, applyingApp, ensure: ensureUpdates, applyApp } = useUpdates()
+const { appUpdate, pluginUpdates, applyingApp, ensure: ensureUpdates, refresh: refreshUpdates, applyApp } = useUpdates()
 onMounted(() => ensureUpdates())
 const updateOf = (id) => pluginUpdates.value.find((u) => u.id === id && u.updateAvailable)
+
+// vérification manuelle : re-check GitHub sans attendre le cache 6 h ni recharger la page
+const checking = ref(false)
+async function checkUpdates() {
+  checking.value = true
+  try {
+    await refreshUpdates(true)
+    const n = pluginUpdates.value.length + (appUpdate.value ? 1 : 0)
+    toast(n
+      ? { title: `${n} mise(s) à jour disponible(s)`, body: 'Voir les boutons « Mettre à jour » ci-dessous' }
+      : { title: 'Tout est à jour', body: 'App et plugins sont sur leur dernière release' })
+  } catch (e) {
+    toast({ title: 'Vérification impossible', body: e?.data?.statusMessage || e?.message })
+  }
+  checking.value = false
+}
 
 async function updatePlugin(p) {
   updating.value = p.id

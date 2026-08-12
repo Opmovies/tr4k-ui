@@ -9,7 +9,9 @@ import type { PluginManifest } from './plugins'
  */
 export async function installFromRelease(repo: string, id: string): Promise<{ manifest: PluginManifest; release: ReleaseInfo }> {
   if (!REPO_RE.test(repo)) throw createError({ statusCode: 400, statusMessage: 'Dépôt invalide' })
-  const rel = await latestRelease(repo)
+  // force : une install/màj doit viser la VRAIE dernière release, pas le cache 6 h
+  // (sinon on installe un zip périmé juste après une publication)
+  const rel = await latestRelease(repo, true)
   if (!rel) throw createError({ statusCode: 404, statusMessage: `Aucune release GitHub trouvée pour ${repo}` })
 
   const asset = pickPluginAsset(rel.assets, id)

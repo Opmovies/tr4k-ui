@@ -7,7 +7,8 @@ export default defineEventHandler(async (event) => {
   const pub = useRuntimeConfig().public as any
   const current = String(pub.appVersion || '0.0.0')
   const repo = String(pub.appRepo || '')
-  const rel = repo ? await latestRelease(repo) : null
+  const force = !!getQuery(event).force // vérification manuelle : ignore le cache 6 h
+  const rel = repo ? await latestRelease(repo, force) : null
   return {
     current,
     repo,

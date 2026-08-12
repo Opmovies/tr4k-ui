@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   if (!repo || !REPO_RE.test(repo))
     throw createError({ statusCode: 400, statusMessage: 'Ce plugin ne déclare pas de dépôt GitHub (champ repository du manifest)' })
 
-  const rel = await latestRelease(repo)
+  const rel = await latestRelease(repo, true) // clic explicite → toujours re-vérifier GitHub
   if (rel && cmpVersions(rel.version, m.version) <= 0) return { ok: true, upToDate: true, version: m.version }
 
   const { manifest } = await installFromRelease(repo, id)

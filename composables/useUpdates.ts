@@ -6,10 +6,11 @@ const applyingApp = ref(false) // MàJ app en un clic en cours (conteneur en rec
 let started = false
 let inflight: Promise<void> | null = null
 
-async function load() {
+async function load(force = false) {
+  const query = force ? { force: 1 } : undefined
   const [a, p] = await Promise.all([
-    $fetch('/api/updates').catch(() => null),
-    $fetch<{ updates: any[] }>('/api/plugins/updates').catch(() => ({ updates: [] })),
+    $fetch('/api/updates', { query }).catch(() => null),
+    $fetch<{ updates: any[] }>('/api/plugins/updates', { query }).catch(() => ({ updates: [] })),
   ])
   appUpdate.value = a?.updateAvailable ? a : null
   pluginUpdates.value = (p?.updates || []).filter((u: any) => u.updateAvailable)
@@ -21,7 +22,9 @@ export function useUpdates() {
     if (!started && import.meta.client) { started = true; inflight = load() }
     return inflight
   }
-  async function refresh() { inflight = load(); return inflight }
+  // force = vérification manuelle (bouton « Vérifier les mises à jour ») : le serveur
+  // ignore alors son cache GitHub 6 h — une release fraîche apparaît immédiatement
+  async function refresh(force = false) { inflight = load(force); return inflight }
 
   // Mise à jour de l'app en un clic (via watchtower). Le conteneur se recrée : on
   // déclenche, puis on sonde /api/updates jusqu'à ce qu'il revienne à jour, et on recharge.
