@@ -15,7 +15,10 @@ export default defineNuxtConfig({
     head: {
       title: 'TR4K UI',
       htmlAttrs: { lang: 'fr' },
-      meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
+      // viewport-fit=cover : active env(safe-area-inset-*) sur iOS (FAB/dock du chat) ;
+      // interactive-widget=resizes-content : le clavier Android redimensionne le layout
+      // (le chat reste visible au-dessus du clavier, complété par visualViewport côté client)
+      meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content' }],
     },
   },
   nitro: {

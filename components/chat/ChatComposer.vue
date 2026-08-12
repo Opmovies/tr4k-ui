@@ -56,8 +56,10 @@ const props = defineProps({
 })
 const emit = defineEmits(['send', 'cancelReply', 'typing'])
 
+// court : sur mobile un placeholder long déborde du textarea 1 ligne
+// (le partage d'image reste indiqué par le bouton ImagePlus et le coller direct)
 const placeholder = computed(() =>
-  props.current?.type === 'dm' ? `Message privé à ${props.current.name}…` : `Message dans ${props.current?.name || ''}… (colle une image)`)
+  props.current?.type === 'dm' ? `Message privé à ${props.current.name}…` : `Message dans ${props.current?.name || ''}…`)
 
 const draft = ref('')
 const pickerOpen = ref(false)
@@ -65,6 +67,17 @@ const inputEl = ref(null)
 const fileEl = ref(null)
 const uploading = ref(false)
 const uploadErr = ref('')
+
+// le textarea grandit avec le texte (plafonné par max-height CSS) au lieu de scroller sur 1 ligne
+function autoGrow() {
+  const el = inputEl.value
+  if (!el) return
+  // vide → hauteur naturelle rows=1 (scrollHeight ajoute une ligne fantôme quand le champ est vide)
+  if (!draft.value) { el.style.height = ''; return }
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight + 2, 110) + 'px' // +2 : bordures (border-box)
+}
+watch(draft, () => nextTick(autoGrow))
 
 function send() {
   const body = draft.value.trim()

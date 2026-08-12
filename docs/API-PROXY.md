@@ -70,11 +70,18 @@ volontairement minimal et lisible — le modifier = relire ces quatre fichiers :
 Relay authentifié vers `wss://tr4ker.net/api/ws` :
 
 - Auth à l'upgrade via le cookie de session (sinon `relay.error` + fermeture).
-- `ping` du tracker absorbé côté serveur (répond `pong` lui-même).
+- `ping` du tracker : le relay répond `pong` lui-même, ET retransmet le `ping` au
+  navigateur (signal de vie pour le watchdog de ChatView).
+- **Heartbeat local** : un `{type:"ping"}` envoyé par le navigateur reçoit un
+  `{type:"pong"}` du relay directement — jamais relayé au tracker. Le client en émet
+  un toutes les 25 s et force une reconnexion si rien n'est reçu depuis 60 s
+  (sockets mortes en silence, fréquent sur mobile).
 - **Types sortants allowlistés** : `msg.send`, `read`, `pong`, `typing`,
   `typing.start`, `typing.stop`, `reaction.add`, `reaction.remove`. Tout le reste est
   jeté silencieusement.
 - Messages mis en file tant que l'upstream n'est pas ouvert.
+- À la **re**connexion, ChatView resynchronise : historique de la conversation
+  courante rechargé (REST) + liste des MP, pour rattraper les messages manqués.
 
 Protocole (observé, cf. TR4KER_API.md) : entrants `connected`, `msg.received` (ou
 message brut), `msg.edited`, `msg.deleted`, `reaction.updated`, `typing{conv_id,user}`,

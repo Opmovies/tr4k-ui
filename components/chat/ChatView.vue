@@ -7,10 +7,10 @@
 
     <div class="chat-main">
       <div class="chat-head" v-if="current">
-        <div style="display:flex; align-items:center; gap:10px">
+        <div class="chat-head-row">
           <button class="ghost chat-back" title="Retour aux canaux" @click="current = null"><ChevronLeft :size="16" /></button>
-          <MessagesSquare v-if="current.type === 'dm'" :size="15" style="color:var(--fl)" />
-          <b>{{ current.name }}</b>
+          <MessagesSquare v-if="current.type === 'dm'" :size="15" style="color:var(--fl); flex:none" />
+          <b class="chat-title">{{ current.name }}</b>
           <span v-if="readOnly" class="badge">lecture seule ({{ (current.write_roles || []).join(', ') }})</span>
           <span style="flex:1" />
           <button
@@ -18,7 +18,7 @@
             :title="chatSettings.autoScroll ? 'Défilement auto activé : suit chaque nouveau message' : 'Défilement auto désactivé : ne défile que si tu es déjà en bas'"
             @click="chatSettings.autoScroll = !chatSettings.autoScroll"
           ><ArrowDownToLine :size="13" /></button>
-          <span class="ws-state" :class="wsState === 'ok' ? 'ok' : 'ko'">{{ wsState === 'ok' ? '● temps réel' : '○ hors ligne' }}</span>
+          <span class="ws-state" :class="wsState === 'ok' ? 'ok' : 'ko'">{{ wsState === 'ok' ? '●' : '○' }}<span class="ws-txt">{{ wsState === 'ok' ? 'temps réel' : 'hors ligne' }}</span></span>
         </div>
         <div class="cdesc" v-if="current.description">{{ current.description }}</div>
       </div>
@@ -138,18 +138,69 @@ const readOnly = computed(() => {
 function isMine(m) { return m.sender_id === me.value?.id || (m.id < 0) }
 
 // ---- WebSocket (gate sur props.active) ----
-let ws = null, retry = 1000, alive = false
+// Sur mobile (verrouillage d'écran, bascule wifi⇆4G) la socket meurt souvent SANS
+// événement close : un heartbeat client→relay (répondu localement par le relay) et
+// un watchdog sur lastSeen détectent ces morts silencieuses, et visibilitychange/online
+// court-circuitent le backoff au retour d'arrière-plan.
+let ws = null, retry = 1000, alive = false, retryTimer = 0, hbTimer = 0, lastSeen = 0, everConnected = false
 function connect() {
   if (!alive) return
+  clearTimeout(retryTimer)
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
   ws = new WebSocket(`${proto}//${location.host}/ws`)
-  ws.onopen = () => { wsState.value = 'ok'; retry = 1000 }
-  ws.onclose = () => { wsState.value = 'ko'; ws = null; if (alive) setTimeout(connect, retry = Math.min(retry * 2, 30000)) }
-  ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data) } catch { return } handle(m) }
+  ws.onopen = () => {
+    wsState.value = 'ok'; retry = 1000; lastSeen = Date.now()
+    if (everConnected) resync() // reconnexion → rattrape ce qui a été manqué
+    everConnected = true
+  }
+  ws.onclose = () => { wsState.value = 'ko'; ws = null; if (alive) retryTimer = setTimeout(connect, retry = Math.min(retry * 2, 30000)) }
+  ws.onmessage = (e) => { lastSeen = Date.now(); let m; try { m = JSON.parse(e.data) } catch { return } handle(m) }
 }
-function stopWs() { alive = false; try { ws?.close() } catch {} ws = null; wsState.value = 'ko' }
+function stopWs() { alive = false; clearTimeout(retryTimer); clearInterval(hbTimer); try { ws?.close() } catch {} ws = null; wsState.value = 'ko' }
 function wsSend(obj) { if (ws?.readyState === 1) ws.send(JSON.stringify(obj)) }
-watch(() => props.active, (a) => { if (a) { if (!alive) { alive = true; connect() } } else stopWs() }, { immediate: true })
+watch(() => props.active, (a) => { if (a) { if (!alive) { alive = true; connect(); startHeartbeat() } } else stopWs() }, { immediate: true })
+
+function startHeartbeat() {
+  clearInterval(hbTimer)
+  hbTimer = setInterval(() => {
+    if (!alive || ws?.readyState !== 1) return
+    if (Date.now() - lastSeen > 60_000) { try { ws.close() } catch {}; return } // morte en silence → onclose → reconnexion
+    wsSend({ type: 'ping' }) // le relay répond pong → lastSeen se rafraîchit
+  }, 25_000)
+}
+
+// retour d'arrière-plan / réseau retrouvé : ne pas attendre le backoff (jusqu'à 30 s)
+function ensureLive() {
+  if (!alive) return
+  if (!ws || ws.readyState > 1) { clearTimeout(retryTimer); retry = 1000; connect() }
+  else if (ws.readyState === 1) {
+    wsSend({ type: 'ping' })
+    if (Date.now() - lastSeen > 35_000) { try { ws.close() } catch {} } // probablement morte → force la reconnexion
+  }
+}
+function onVisibility() {
+  if (document.visibilityState !== 'visible') return
+  ensureLive()
+  if (props.visible && current.value) { unread[current.value.id] = 0; wsSend({ type: 'read', conv_id: current.value.id }) }
+}
+
+// après une coupure : recharge l'historique de la conversation courante + la liste des MP
+async function resync() {
+  loadDms()
+  const c = current.value
+  if (!c) return
+  try {
+    const r = await $fetch(`/api/t/conversations/${c.id}/messages`)
+    if (current.value?.id !== c.id) return // conversation changée entre-temps
+    const fresh = (r.messages || []).slice().reverse()
+    // conserve les échos optimistes que le serveur n'a pas encore renvoyés
+    const pending = messages.value.filter((p) => p.id < 0 && !fresh.some((f) => f.sender_id === p.sender_id && f.body === p.body))
+    messages.value = [...fresh, ...pending]
+    hasMore.value = !!r.has_more
+    if (props.visible && document.visibilityState === 'visible') wsSend({ type: 'read', conv_id: c.id })
+    scrollDown(false)
+  } catch {}
+}
 
 function bodyPreview(b) { return (b || '').replace(/\[img\][^[]*\[\/img\]/gi, '🖼 image').replace(/\s+/g, ' ').trim().slice(0, 120) }
 
@@ -174,7 +225,9 @@ function handle(m) {
   if (m.type === 'msg.received' || (!m.type && m.body !== undefined)) {
     pluginHost.hooks.doAction('chat.message.received', m)
     const mine = m.sender_id === me.value?.id
-    const viewing = props.visible && cid === current.value?.id
+    // « je regarde la conversation » exige aussi que l'onglet soit au premier plan :
+    // sinon un message arrivé en arrière-plan était marqué lu sans badge ni son
+    const viewing = props.visible && cid === current.value?.id && document.visibilityState === 'visible'
     if (m.sender) delete typing[m.sender] // son message est arrivé → il n'écrit plus
     if (cid === current.value?.id) {
       // écho optimiste : remplace le message temporaire (id négatif) par la version serveur
@@ -183,7 +236,7 @@ function handle(m) {
       if (idx >= 0) messages.value.splice(idx, 1, msg)
       else { messages.value.push(msg); if (!mine && !viewing) { unread[cid] = (unread[cid] || 0) + 1 } }
       scrollDown(chatSettings.autoScroll, true)
-      if (props.visible) wsSend({ type: 'read', conv_id: cid })
+      if (viewing) wsSend({ type: 'read', conv_id: cid })
     } else if (cid) {
       unread[cid] = (unread[cid] || 0) + 1
       const dm = dms.value.find((d) => d.id === cid)
@@ -280,8 +333,12 @@ async function loadOlder() {
   const first = messages.value[0]
   if (!first || !current.value) return
   const r = await $fetch(`/api/t/conversations/${current.value.id}/messages`, { query: { before: first.id } })
+  // ancre la vue : Safari n'a pas de scroll anchoring, sans ça le prepend fait sauter en haut
+  const el = msgBox.value
+  const prevH = el?.scrollHeight || 0, prevTop = el?.scrollTop || 0
   messages.value = [...(r.messages || []).slice().reverse(), ...messages.value]
   hasMore.value = !!r.has_more
+  nextTick(() => { if (el) el.scrollTop = prevTop + (el.scrollHeight - prevH) })
 }
 
 // envoi : écho optimiste (id négatif) remplacé quand le serveur renvoie le message
@@ -345,20 +402,23 @@ async function deleteMessage(m) {
   m.body = undefined
 }
 
-// petite animation de défilement (rAF) : behavior:'smooth' natif est parfois ignoré selon l'environnement
+// petite animation de défilement (rAF) : behavior:'smooth' natif est parfois ignoré selon l'environnement.
+// La cible est recalculée à CHAQUE frame : si le contenu grandit pendant l'animation
+// (image qui charge, nouveau message), on atterrit quand même tout en bas.
 let scrollRaf = 0
-function animateScrollTo(el, to) {
+function animateScrollTo(el) {
   cancelAnimationFrame(scrollRaf)
-  const start = el.scrollTop
+  const bottom = () => el.scrollHeight - el.clientHeight
+  let from = el.scrollTop
   // très loin du bas → on saute près de la cible pour garder une animation courte
-  const from = to - start > 800 ? (el.scrollTop = to - 400) : start
-  const dist = to - from
-  if (Math.abs(dist) < 2) { el.scrollTop = to; return }
+  if (bottom() - from > 800) from = el.scrollTop = bottom() - 400
+  if (Math.abs(bottom() - from) < 2) { el.scrollTop = bottom(); return }
   const dur = 350, t0 = performance.now()
   const step = (now) => {
     const p = Math.min(1, (now - t0) / dur)
-    el.scrollTop = from + dist * (1 - Math.pow(1 - p, 3))
+    el.scrollTop = from + (bottom() - from) * (1 - Math.pow(1 - p, 3))
     if (p < 1) scrollRaf = requestAnimationFrame(step)
+    else el.scrollTop = bottom()
   }
   scrollRaf = requestAnimationFrame(step)
 }
@@ -369,10 +429,29 @@ function scrollDown(force, smooth = false) {
     if (!el) return
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200
     if (!force && !nearBottom) return
-    const to = el.scrollHeight - el.clientHeight
-    if (smooth) animateScrollTo(el, to)
-    else el.scrollTop = to
+    if (smooth) animateScrollTo(el)
+    else el.scrollTop = el.scrollHeight - el.clientHeight
   })
+}
+
+// les images ([img]/GIFs, sans hauteur réservée) chargent APRÈS le scroll et poussent le
+// contenu : si on était en bas avant cette croissance, on y recolle. `load` ne bouillonne
+// pas → écoute en phase de capture sur le conteneur.
+function onImgLoad(e) {
+  const img = e.target
+  const el = msgBox.value
+  if (img?.tagName !== 'IMG' || !el || !el.contains(img)) return
+  const behind = el.scrollHeight - el.scrollTop - el.clientHeight
+  if (behind < 200 + img.clientHeight) el.scrollTop = el.scrollHeight - el.clientHeight
+}
+
+// clavier mobile : le viewport visuel rétrécit → les derniers messages passaient sous le composer
+let vvH = 0
+function onVvResize() {
+  const h = window.visualViewport?.height || 0
+  const shrank = vvH - h > 60
+  vvH = h
+  if (shrank && props.visible && current.value) scrollDown(true)
 }
 
 // quand la conversation courante devient visible, marquer lu + recaler la vue en bas
@@ -384,8 +463,21 @@ watch(() => props.visible, (v) => {
   }
 })
 
-onMounted(() => { loadDms(); loadMods() })
-onBeforeUnmount(stopWs)
+onMounted(() => {
+  loadDms(); loadMods()
+  document.addEventListener('visibilitychange', onVisibility)
+  window.addEventListener('online', ensureLive)
+  msgBox.value?.addEventListener('load', onImgLoad, true)
+  vvH = window.visualViewport?.height || 0
+  window.visualViewport?.addEventListener('resize', onVvResize)
+})
+onBeforeUnmount(() => {
+  stopWs()
+  document.removeEventListener('visibilitychange', onVisibility)
+  window.removeEventListener('online', ensureLive)
+  msgBox.value?.removeEventListener('load', onImgLoad, true)
+  window.visualViewport?.removeEventListener('resize', onVvResize)
+})
 watch(channels, (cs) => {
   if (cs.length && !current.value && !(props.primary && (route.query.conv || route.query.dm))) {
     openConversation(cs.find((c) => c.slug === 'general') || cs[0])

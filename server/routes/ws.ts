@@ -28,7 +28,9 @@ export default defineWebSocketHandler({
       const data = String(e.data)
       try {
         const msg = JSON.parse(data)
-        if (msg.type === 'ping') { up.send(JSON.stringify({ type: 'pong' })); return }
+        // le pong upstream est répondu ICI, mais le ping est AUSSI retransmis au
+        // navigateur : il sert de signal de vie au watchdog client (ChatView)
+        if (msg.type === 'ping') { up.send(JSON.stringify({ type: 'pong' })); peer.send(data); return }
       } catch {}
       peer.send(data)
     }
@@ -45,10 +47,12 @@ export default defineWebSocketHandler({
     const link = links.get(peer.id)
     if (!link) return
     const text = message.text()
-    try {
-      const msg = JSON.parse(text)
-      if (!OUT_ALLOWED.has(msg.type)) return
-    } catch { return }
+    let msg
+    try { msg = JSON.parse(text) } catch { return }
+    // heartbeat navigateur⇆relay : répondu localement, JAMAIS relayé au tracker.
+    // Permet au client de détecter une socket morte en silence (mobile).
+    if (msg.type === 'ping') { peer.send('{"type":"pong"}'); return }
+    if (!OUT_ALLOWED.has(msg.type)) return
     if (link.ws.readyState === 1) link.ws.send(text)
     else link.queue.push(text)
   },
