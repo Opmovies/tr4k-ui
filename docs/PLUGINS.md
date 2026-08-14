@@ -150,6 +150,7 @@ Le contexte `ctx` :
 | `lib.tr4kGet(path, query, auth)` | GET proxifié vers l'API TR4KER (cache + quota partagés avec le core). |
 | `lib.tr4kMutate(method, path, auth, body?)` | Mutation cadencée vers TR4KER. |
 | `lib.tr4kDownload(slug, auth)` | Récupère un `.torrent` (Response). |
+| `lib.tr4kMultipart(path, { fields, file? }, auth)` | POST multipart cadencé vers TR4KER (ex. upload d'un torrent : `file = { field, name, data, type? }`). Hôte ≥ 1.5.6. |
 | `lib.fetch` | `fetch` global Node — pour parler à des services externes. |
 | `h3.createError`, `h3.setHeader` | Utilitaires H3 (une erreur `createError` est relayée telle quelle au client). |
 | `dataDir` | Dossier persistant du plugin (`.data/plugin-data/<id>/`), créé pour toi. |

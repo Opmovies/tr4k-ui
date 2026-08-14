@@ -130,6 +130,36 @@ export async function tr4kMutate(method: string, path: string, auth: Auth, body?
   return res.status === 204 ? { ok: true } : res.json()
 }
 
+/** POST multipart vers le tracker (upload de torrent…) — cadencé, jamais mis en cache.
+ *  `file.data` accepte Uint8Array/ArrayBuffer ; timeout long (l'upload d'un .torrent
+ *  passe par la modération anti-doublon côté site). */
+export async function tr4kMultipart(
+  path: string,
+  opts: { fields: Record<string, string>; file?: { field: string; name: string; data: Uint8Array | ArrayBuffer; type?: string } },
+  auth: Auth,
+): Promise<any> {
+  const rate = rateFor(auth.hash)
+  if (Date.now() < rate.blockedUntil) throw createError({ statusCode: 429, statusMessage: 'Tracker throttlé, réessaie dans un instant' })
+  await pace(rate)
+  rate.sent.push(Date.now())
+  const fd = new FormData()
+  for (const [k, v] of Object.entries(opts.fields)) fd.append(k, v)
+  if (opts.file) {
+    const data = opts.file.data instanceof Uint8Array ? opts.file.data : new Uint8Array(opts.file.data)
+    fd.append(opts.file.field, new Blob([data], { type: opts.file.type || 'application/x-bittorrent' }), opts.file.name)
+  }
+  const res = await fetch(`${base()}/api/${path}`, {
+    method: 'POST',
+    headers: { ...authHeaders(auth), Accept: 'application/json' },
+    body: fd,
+    signal: AbortSignal.timeout(120_000),
+  })
+  if (res.status === 429) { rate.blockedUntil = Date.now() + 90_000; throw createError({ statusCode: 429, statusMessage: 'HTTP 429 du tracker' }) }
+  if (res.status === 401) throw createError({ statusCode: 401, statusMessage: 'Session TR4KER expirée' })
+  if (!res.ok) { const t = await res.text().catch(() => ''); throw createError({ statusCode: res.status, statusMessage: `TR4KER ${res.status}: ${t.slice(0, 300)}` }) }
+  return res.status === 204 ? { ok: true } : res.json()
+}
+
 /** Téléchargement binaire (.torrent) — cadencé, jamais mis en cache. */
 export async function tr4kDownload(slug: string, auth: Auth): Promise<Response> {
   const rate = rateFor(auth.hash)

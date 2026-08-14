@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
-import { tr4kGet, tr4kMutate, tr4kDownload } from '../../../utils/tr4ker'
+import { tr4kGet, tr4kMutate, tr4kDownload, tr4kMultipart } from '../../../utils/tr4ker'
 
 /**
  * Dispatcher des routes serveur de plugins : /api/px/<id>/<chemin> (toutes méthodes).
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
     saveSettings: (v: Record<string, any>) => savePluginSettings(id, auth, v),
     query: getQuery(event),
     body: ['GET', 'HEAD'].includes(event.method) ? undefined : await readBody(event).catch(() => undefined),
-    lib: { tr4kGet, tr4kMutate, tr4kDownload, fetch: globalThis.fetch },
+    lib: { tr4kGet, tr4kMutate, tr4kDownload, tr4kMultipart, fetch: globalThis.fetch },
     h3: { createError, setHeader: (k: string, v: string) => setHeader(event, k, v) },
     dataDir,
     log: (...a: any[]) => console.log(`[plugin:${id}]`, ...a),
